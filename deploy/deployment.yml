@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cost-metrics-aggregator
+  namespace: cost-metrics
+spec:
+  replicas: 1
+  selector:
+    matchLables:
+      app: cost-metrics-aggreator
+  template:
+    metadata:
+      labels:
+        app: cost-metrics-aggreator
+    spec:
+      containers:
+        - name: cost-metrics-aggregator
+          image: quay.io/chambrid/cost-metrics-aggregator
+          ports:
+          - containerPort: 8080
+          env:
+          - name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+               name: cost-metrics-secrets
+               key: database-url
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+            requests:
+              cpu: "200m"
+              memory: "256Mi"

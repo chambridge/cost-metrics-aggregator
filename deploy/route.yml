@@ -1,0 +1,13 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: cost-metrics-aggregator
+  namespace: cost-metrics
+spec:
+  to:
+    kind: Service
+    name: cost-metrics-aggregator
+  port:
+    targetPort: 8080
+  tls:
+    termination: edge

@@ -1,0 +1,2 @@
+server_address: ":8080"
+database_url: "postgres://user:pass@localhost:5432/dbname?sslmode=disable"
