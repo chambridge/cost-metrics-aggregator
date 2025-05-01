@@ -18,7 +18,7 @@ The Cost Metrics Aggregator is a Go-based application for collecting and aggrega
 ## Repository Structure
 ```
 .
-├── Containerfile               # Multi-platform Dockerfile
+├── Containerfile
 ├── go.mod                     # Go module dependencies
 ├── internal/db/migrations/    # SQL migrations (e.g., 0001_init.sql)
 ├── scripts/                   # Go scripts for partition management
@@ -50,24 +50,12 @@ git clone https://github.com/chambridge/cost-metrics-aggregator.git
 cd cost-metrics-aggregator
 ```
 
-### 2. Configure Quay.io for Automated Builds
-1. Log in to Quay.io (https://quay.io) and navigate to `chambridge/cost-metrics-aggregator` (create if needed).
-2. Go to the “Builds” tab and create a build trigger:
-   - Select “GitHub” and authenticate.
-   - Set repository to `chambridge/cost-metrics-aggregator`.
-   - Set branch regex to `main` (or `.*` for all branches).
-   - Set Dockerfile path to `Containerfile`.
-   - Set context to `/`.
-3. Enable multi-platform builds (Quay.io infers `linux/amd64`, `linux/arm64` from `Containerfile`).
-4. Push a commit to trigger a build:
-   ```bash
-   git commit --allow-empty -m "Trigger Quay.io build"
-   git push origin main
-   ```
-5. Verify the build in Quay.io’s “Builds” tab and check the manifest:
-   ```bash
-   docker manifest inspect quay.io/chambridge/cost-metrics-aggregator:latest
-   ```
+### 2. Build image
+```bash
+podman build -t quay.io/chambridge/cost-metrics-aggregator:latest .
+podman push quay.io/chambridge/cost-metrics-aggregator:latest
+```
+
 
 ### 3. Deploy on OpenShift
 1. Create the `cost-metrics` namespace:
@@ -111,12 +99,10 @@ cd cost-metrics-aggregator
    ```
 
 4. Check CronJob execution:
-   ``` европей
-
-bash
-kubectl get jobs -n cost-metrics
-kubectl logs <job-pod-name> -n cost-metrics
-```
+   ```bash
+    kubectl get jobs -n cost-metrics
+    kubectl logs <job-pod-name> -n cost-metrics
+    ```
 
 ## Partition Management
 - **Creation**: The `create_partitions.go` script (run by the initContainer and `cronjob-create-partitions`) creates `metrics` table partitions for the next 3 months, named `metrics_YYYY_MM`.
