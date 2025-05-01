@@ -109,29 +109,6 @@ podman push quay.io/chambridge/cost-metrics-aggregator:latest
 - **Deletion**: The `drop_partitions.go` script (run by `cronjob-drop-partitions`) drops partitions older than 6 months.
 - Both CronJobs run monthly on the 1st at midnight (`0 0 1 * *`).
 
-## Container Image
-The `Containerfile` builds a multi-platform image (`linux/amd64`, `linux/arm64`) using:
-- `golang:1.21` for dependency fetching.
-- `ubi9/ubi-minimal` for runtime, with Go, `libpq`, and the `migrate` tool (v4.17.0).
-- Files copied: `internal/db/migrations/` and `scripts/`.
-
-Images are built automatically by Quay.io on GitHub pushes and pushed to `quay.io/chambridge/cost-metrics-aggregator:latest`.
-
-## Development
-To build and test locally:
-```bash
-podman build \
-  --platform linux/amd64,linux/arm64 \
-  -t quay.io/chambridge/cost-metrics-aggregator:latest \
-  --manifest quay.io/chambridge/cost-metrics-aggregator:latest .
-podman push quay.io/chambridge/cost-metrics-aggregator:latest
-```
-
-Test the image:
-```bash
-podman run --rm quay.io/chambridge/cost-metrics-aggregator:latest migrate --version
-```
-
 ## Endpoints
 - POST /api/ingres/v1/upload: Uplaod a tar.gz file containing manifest.json and node.csv
 - GET /api/metrics/v1/ndoes: Query node core count with optional filters (start_date, end_date, cluster_id, cluster_name, node_type).
