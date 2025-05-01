@@ -1,25 +1,28 @@
+-- Initial schema for cost-metrics-aggregator
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 CREATE TABLE clusters (
-    id SERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT UNIQUE NOT NULL
 );
 
 CREATE TABLE nodes (
-    id SERIAL PRIMARY KEY,
-    cluster_id INTEGER REFERENCES clusters(id),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    cluster_id UUID REFERENCES clusters(id),
     name TEXT NOT NULL,
     identifier TEXT UNIQUE NOT NULL,
     type TEXT NOT NULL
 );
 
 CREATE TABLE metrics (
-    id SERIAL PRIMARY KEY,
-    node_id INTEGER REFERENCES nods(id),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    node_id UUID REFERENCES nodes(id),
     timestamp TIMESTAMPTZ NOT NULL,
-    core_count INTEGER NOT NULL,
+    core_count INTEGER NOT NULL
 ) PARTITION BY RANGE (timestamp);
 
 CREATE TABLE daily_summary (
-    node_id INTEGER REFERENCES nodes(id),
+    node_id UUID REFERENCES nodes(id),
     date DATE NOT NULL,
     core_count INTEGER NOT NULL,
     total_hours INTEGER NOT NULL,

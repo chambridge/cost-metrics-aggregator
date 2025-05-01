@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: create-new-partitions
+  namespace: cost-metrics
+spec:
+  schedule: "0 0 1 * *" # Run monthly at midnight on the 1st
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: create-partitions
+            image: quay.io/chambridge/cost-metrics-aggregator:latest
+            command:
+            - /bin/sh
+            - -c
+            - |
+              go run /app/scripts/create_partitions.go
+            env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: cost-metrics-db
+                  key: database-url
+          restartPolicy: OnFailure

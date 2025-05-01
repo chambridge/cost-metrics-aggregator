@@ -3,31 +3,55 @@ kind: Deployment
 metadata:
   name: cost-metrics-aggregator
   namespace: cost-metrics
+  labels:
+    app: cost-metrics-aggregator
 spec:
   replicas: 1
   selector:
-    matchLables:
-      app: cost-metrics-aggreator
+    matchLabels:
+      app: cost-metrics-aggregator
   template:
     metadata:
       labels:
-        app: cost-metrics-aggreator
+        app: cost-metrics-aggregator
     spec:
+      initContainers:
+      - name: init-db
+        image: quay.io/chambridge/cost-metrics-aggregator:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          # Run database migrations (adjust command based on your migration tool)
+          migrate -path /app/migrations -database $DATABASE_URL up &&
+          # Run partition creation script
+          go run /app/scripts/create_partitions.go
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: cost-metrics-db
+              key: database-url
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "200m"
+            memory: "256Mi"
       containers:
-        - name: cost-metrics-aggregator
-          image: quay.io/chambrid/cost-metrics-aggregator
-          ports:
-          - containerPort: 8080
-          env:
-          - name: DATABASE_URL
-            valueFrom:
-              secretKeyRef:
-               name: cost-metrics-secrets
-               key: database-url
-          resources:
-            limits:
-              cpu: "500m"
-              memory: "512Mi"
-            requests:
-              cpu: "200m"
-              memory: "256Mi"
+      - name: cost-metrics-aggregator
+        image: quay.io/chambridge/cost-metrics-aggregator:latest
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: cost-metrics-db
+              key: database-url
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "200m"
+            memory: "256Mi"
