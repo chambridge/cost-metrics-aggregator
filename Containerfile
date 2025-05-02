@@ -10,7 +10,6 @@ RUN go mod download || true
 # Copy all Go source code directories
 COPY api/ /app/api/
 COPY cmd/ /app/cmd/
-COPY config/ /app/config/
 COPY internal/ /app/internal/
 COPY scripts/ /app/scripts/
 

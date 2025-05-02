@@ -10,13 +10,9 @@ type Config struct {
 }
 
 func LoadConfig() (*Config, error) {
-	viper.SetConfigFile("config/config.yaml")
 	viper.SetDefault("server_address", ":8080")
 	viper.SetDefault("database_url", "postgres://user:pass@localhost:5432/dbname")
-
-	if err := viper.ReadInConfig(); err != nil {
-		return nil, err
-	}
+	viper.AutomaticEnv()
 
 	var cfg Config
 	if err := viper.Unmarshal(&cfg); err != nil {
