@@ -18,14 +18,11 @@ spec:
       initContainers:
       - name: init-db
         image: quay.io/chambrid/cost-metrics-aggregator:latest
-        command:
-        - /bin/sh
-        - -c
+        command: ["/bin/sh", "-c"]
+        args:
         - |
-          # Run database migrations (adjust command based on your migration tool)
-          migrate -path migrations -database $DATABASE_URL up &&
-          # Run partition creation script
-          go run /app/scripts/create_partitions.go
+          migrate -path /app/migrations -database "$DATABASE_URL" up &&
+          /app/scripts/create_partitions
         env:
         - name: DATABASE_URL
           valueFrom:
@@ -48,6 +45,8 @@ spec:
             secretKeyRef:
               name: cost-metrics-db
               key: database-url
+        ports:
+        - containerPort: 8080
         resources:
           limits:
             cpu: "500m"

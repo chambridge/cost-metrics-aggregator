@@ -7,15 +7,23 @@ WORKDIR /app
 COPY go.mod go.sum* ./
 RUN go mod download || true
 
-# Copy migrations and scripts directories (if they exist)
-COPY internal/db/migrations* /app/migrations/
-COPY scripts* /app/scripts/
+# Copy all Go source code directories
+COPY api/ /app/api/
+COPY cmd/ /app/cmd/
+COPY config/ /app/config/
+COPY internal/ /app/internal/
+COPY scripts/ /app/scripts/
+
+# Compile Go programs into binaries
+RUN go build -o /app/server /app/cmd/server/main.go
+RUN go build -o /app/scripts/create_partitions /app/scripts/create_partitions.go
+RUN go build -o /app/scripts/drop_partitions /app/scripts/drop_partitions.go
 
 # Runtime stage
 FROM registry.access.redhat.com/ubi9/ubi-minimal
 
 # Install dependencies: libpq for PostgreSQL and curl-minimal for downloading migrate
-RUN microdnf install -y libpq curl-minimal tar gzip && \
+RUN microdnf install -y libpq curl-minimal && \
     microdnf clean all
 
 # Install migrate CLI (version 4.17.0) for amd64
@@ -23,19 +31,20 @@ RUN curl -L https://github.com/golang-migrate/migrate/releases/download/v4.17.0/
     mv migrate /usr/local/bin/migrate && \
     chmod +x /usr/local/bin/migrate
 
-# Copy migrations and scripts from builder stage
-COPY --from=builder /app/migrations /app/migrations
-COPY --from=builder /app/scripts /app/scripts
+# Copy migrations and compiled binaries from builder stage
+COPY --from=builder /app/internal/db/migrations /app/migrations
+COPY --from=builder /app/server /app/server
+COPY --from=builder /app/scripts/create_partitions /app/scripts/create_partitions
+COPY --from=builder /app/scripts/drop_partitions /app/scripts/drop_partitions
 
-# Install Go for running scripts in CronJobs and initContainer
 RUN microdnf install -y go && \
     microdnf clean all
 
 # Set working directory
 WORKDIR /app
 
-# Ensure scripts are executable (if they exist)
-RUN chmod +x /app/scripts/*.go 2>/dev/null || true
+# Ensure binaries are executable
+RUN chmod +x /app/server /app/scripts/create_partitions /app/scripts/drop_partitions
 
-# Placeholder command (adjust based on your app's needs)
-CMD ["sleep", "infinity"]
+# Default command to run the server
+CMD ["/app/server"]
