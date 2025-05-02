@@ -25,3 +25,4 @@ go.work.sum
 .env
 
 deploy/cost-metrics-db-secret.yml
+data
