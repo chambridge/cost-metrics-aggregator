@@ -60,25 +60,29 @@ podman push quay.io/chambridge/cost-metrics-aggregator:latest
 ### 3. Deploy on OpenShift
 1. Create the `cost-metrics` namespace:
    ```bash
-   kubectl apply -f deploy/namespace.yaml
+   kubectl apply -f deploy/namespace.yml
+   ```
+2. Update contents of the deploy/cost-metrics-db-secret.yml
+
+- Add a base64 encoded password
+- Base64 encoded: "postgres://<username>:<password>@postgres:5432/costmetrics"
+
+3. Deploy the PostgreSQL database and secret:
+   ```bash
+   kubectl apply -f deploy/cost-metrics-db-secret.yml -n cost-metrics
+   kubectl apply -f deploy/postgres-deployment.yml -n cost-metrics
+   kubectl apply -f deploy/postgres-service.yml -n cost-metrics
    ```
 
-2. Deploy the PostgreSQL database and secret:
+4. Deploy the application:
    ```bash
-   kubectl apply -f deploy/cost-metrics-db-secret.yaml -n cost-metrics
-   kubectl apply -f deploy/postgres-deployment.yaml -n cost-metrics
-   kubectl apply -f deploy/postgres-service.yaml -n cost-metrics
+   kubectl apply -f deploy/deployment.yml -n cost-metrics
    ```
 
-3. Deploy the application:
+5. Deploy CronJobs for partition management:
    ```bash
-   kubectl apply -f deploy/deployment.yaml -n cost-metrics
-   ```
-
-4. Deploy CronJobs for partition management:
-   ```bash
-   kubectl apply -f deploy/cronjob-create-partitions.yaml -n cost-metrics
-   kubectl apply -f deploy/cronjob-drop-partitions.yaml -n cost-metrics
+   kubectl apply -f deploy/cronjob-create-partitions.yml -n cost-metrics
+   kubectl apply -f deploy/cronjob-drop-partitions.yml -n cost-metrics
    ```
 
 ### 4. Verify Deployment
