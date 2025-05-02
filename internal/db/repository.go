@@ -2,15 +2,16 @@ package db
 
 import (
 	"context"
-	"time"
+	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"time"
 )
 
 type Repository struct {
 	db *pgxpool.Pool
 }
 
-func NewRepository(db *pgxpool.Pool)  *Repository{
+func NewRepository(db *pgxpool.Pool) *Repository {
 	return &Repository{db: db}
 }
 
@@ -29,7 +30,7 @@ func (r *Repository) UpsertNode(clusterID int, name, identifier, nodeType string
 		`INSERT INTO nodes (cluster_id, name, identifier, type)
 		 VALUES ($1, $2, $3, $4)
 		 ON CONFLICT (identifier) DO UPDATE SET name = EXCLUDED.name, type = EXCLUDED.type
-		 RETURNING id`, clusterID, name identifier, nodeType).Scan(&id)
+		 RETURNING id`, clusterID, name, identifier, nodeType).Scan(&id)
 	return id, err
 }
 
@@ -40,7 +41,7 @@ func (r *Repository) InsertMetric(nodeID int, timestamp time.Time, coreCount int
 	return err
 }
 
-func (r*Repository) UpdateDailySummary(nodeID int, timestamp time.Time, coreCount int) error {
+func (r *Repository) UpdateDailySummary(nodeID int, timestamp time.Time, coreCount int) error {
 	date := timestamp.Truncate(24 * time.Hour)
 	_, err := r.db.Exec(context.Background(),
 		`INSERT INTO daily_summaries (node_id, date, core_count, total_hours)
@@ -51,28 +52,28 @@ func (r*Repository) UpdateDailySummary(nodeID int, timestamp time.Time, coreCoun
 	return err
 }
 
-func (r *Repository) QueryMetrics(start, end time.Time, clusterID *int, clusterName, nodeType string) ([]DailySummary, error) {
+func (r *Repository) QueryMetrics(start, end time.Time, clusterID string, clusterName, nodeType string) ([]DailySummary, error) {
 	query := `
 		SELECT ds.node_id, ds.date, ds.core_count, ds.total_hours
 		FROM daily_summaries ds
 		JOIN nodes n ON ds.node_id = n.id
 		JOIN clusters c ON n.cluster_id = c.id
 		WHERE ds.date BETWEEN $1 AND $2`
-	args := []interface{}{start,end}
-	if clusterID != nil {
-		query += " AND c.id = $" + string(len(args)+1)
-		args = append(args, *clusterID)
+	args := []interface{}{start, end}
+	if clusterID != "" {
+		query += " AND c.id = $" + fmt.Sprint(len(args)+1)
+		args = append(args, clusterID)
 	}
 	if clusterName != "" {
-		query += " AND c.name = $" + string(len(args)+1)
+		query += " AND c.name = $" + fmt.Sprint(len(args)+1)
 		args = append(args, clusterName)
 	}
 	if nodeType != "" {
-		query += " AND n.type = $" + string(len(args)+1)
+		query += " AND n.type = $" + fmt.Sprint(len(args)+1)
 		args = append(args, nodeType)
 	}
 
-	rows, err := r.db.Query(context.Background(), query, args ...)
+	rows, err := r.db.Query(context.Background(), query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +82,7 @@ func (r *Repository) QueryMetrics(start, end time.Time, clusterID *int, clusterN
 	var summaries []DailySummary
 	for rows.Next() {
 		var s DailySummary
-		if err := rows.Scan(&s.NodeID, &s.Date, &s.CoreCount, &s,TotalHours); err != nil {
+		if err := rows.Scan(&s.NodeID, &s.Date, &s.CoreCount, &s.TotalHours); err != nil {
 			return nil, err
 		}
 		summaries = append(summaries, s)

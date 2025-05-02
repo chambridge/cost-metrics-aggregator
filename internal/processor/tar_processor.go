@@ -3,6 +3,7 @@ package processor
 import (
 	"archive/tar"
 	"compress/gzip"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"

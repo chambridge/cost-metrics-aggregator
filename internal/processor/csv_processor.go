@@ -2,16 +2,17 @@ package processor
 
 import (
 	"encoding/csv"
+	"strconv"
 	"strings"
 	"time"
 )
 
 type NodeMetric struct {
-	NodeName string
+	NodeName       string
 	NodeIdentifier string
-	NodeType string
-	Timestamp time.Time
-	CoreCount int
+	NodeType       string
+	Timestamp      time.Time
+	CoreCount      int
 }
 
 func ProcessNodeCSV(csvData string) ([]NodeMetric, error) {
@@ -35,12 +36,12 @@ func ProcessNodeCSV(csvData string) ([]NodeMetric, error) {
 			return nil, err
 		}
 
-		metrics = append (metrics, NodeMetric{
-			NodeName: record[0],
+		metrics = append(metrics, NodeMetric{
+			NodeName:       record[0],
 			NodeIdentifier: record[1],
-			NodeType: record[2],
-			Timestamp: timestamp,
-			CoreCount: coreCount,
+			NodeType:       record[2],
+			Timestamp:      timestamp,
+			CoreCount:      coreCount,
 		})
 	}
 

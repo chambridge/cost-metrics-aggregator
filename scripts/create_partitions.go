@@ -6,8 +6,6 @@ import (
 	"log"
 	"os"
 	"time"
-
-	"github.com/lib/pq"
 )
 
 func main() {

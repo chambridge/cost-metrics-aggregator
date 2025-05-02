@@ -23,7 +23,7 @@ RUN go build -o /app/scripts/drop_partitions /app/scripts/drop_partitions.go
 FROM registry.access.redhat.com/ubi9/ubi-minimal
 
 # Install dependencies: libpq for PostgreSQL and curl-minimal for downloading migrate
-RUN microdnf install -y libpq curl-minimal && \
+RUN microdnf install -y libpq curl-minimal tar gzip && \
     microdnf clean all
 
 # Install migrate CLI (version 4.17.0) for amd64

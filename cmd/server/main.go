@@ -1,24 +1,27 @@
 package main
 
 import (
-	"log"
+	"context"
 	"github.com/chambridge/cost-metrics-aggregator/api"
 	"github.com/chambridge/cost-metrics-aggregator/internal/config"
-	"github.com/chambridge/cost-metrics-aggregator/internal/db"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"log"
+	"os"
 )
 
-function main() {
+func main() {
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	dbConn, err := db.Connect(cfg.DatabaseURL)
+	dbpool, err := pgxpool.New(context.Background(), cfg.DatabaseURL)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
+		os.Exit(1)
 	}
-	defer dbConn.Close()
+	defer dbpool.Close()
 
-	router := api.SetupRouter(dbConn, cfg)
+	router := api.SetupRouter(dbpool, cfg)
 	log.Fatal(router.Run(cfg.ServerAddress))
 }

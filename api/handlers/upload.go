@@ -1,20 +1,18 @@
-package handers
+package handlers
 
 import (
-	"archive/tar"
-	"compress/gzip"
 	"encoding/json"
+	"github.com/chambridge/cost-metrics-aggregator/internal/db"
+	"github.com/chambridge/cost-metrics-aggregator/internal/processor"
+	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
-	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/pgxpool"
-	"github.com/chambridge/cost-metrics-aggregator/api/internal/db"
-	"github.com/chambridge/cost-metrics-aggregator/api/internal/processor"
 )
 
-func UploadHandler(db *pgxpool.Pool) gin.HanderFunc {
+func UploadHandler(database *pgxpool.Pool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		file, _, err := c.Request.FormFile("file")
 		if err != nil {
@@ -25,7 +23,7 @@ func UploadHandler(db *pgxpool.Pool) gin.HanderFunc {
 
 		tempDir, err := os.MkdirTemp("", "upload")
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, g.H{"error": "Failed to create temp dir"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create temp dir"})
 			return
 		}
 		defer os.RemoveAll(tempDir)
@@ -33,14 +31,14 @@ func UploadHandler(db *pgxpool.Pool) gin.HanderFunc {
 		tarPath := filepath.Join(tempDir, "upload.targ.gz")
 		outFile, err := os.Create(tarPath)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, g.H{"error": "Failed to save file"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
 			return
 		}
 		defer outFile.Close()
-		
+
 		_, err = io.Copy(outFile, file)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, g.H{"error": "Failed to write file")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write file"})
 			return
 		}
 
@@ -52,14 +50,14 @@ func UploadHandler(db *pgxpool.Pool) gin.HanderFunc {
 
 		var manifestData struct {
 			ClusterName string `json:"cluster_name"`
-			NodeFile string `json:"node_file"`
+			NodeFile    string `json:"node_file"`
 		}
-		if err := json.Unmarshal([] byte(manifest), &manifestData); err != nil {
+		if err := json.Unmarshal([]byte(manifest), &manifestData); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid manifest"})
 			return
 		}
 
-		repo := db.NewRepository(db)
+		repo := db.NewRepository(database)
 		clusterID, err := repo.UpsertCluster(manifestData.ClusterName)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save cluster"})
@@ -68,12 +66,12 @@ func UploadHandler(db *pgxpool.Pool) gin.HanderFunc {
 
 		metrics, err := processor.ProcessNodeCSV(nodeCSV)
 		if err != nil {
-			c.JOSN(http.StatusBadRequest, g.H{"error": "Failed to process CSV: " + err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to process CSV: " + err.Error()})
 			return
 		}
 
 		for _, metric := range metrics {
-			nodeID, err := repo.UpsertNode(clusterID, metric.NodeName, metric.NodeIdentifier, metric.nodeType)
+			nodeID, err := repo.UpsertNode(clusterID, metric.NodeName, metric.NodeIdentifier, metric.NodeType)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save node"})
 				return
@@ -90,6 +88,6 @@ func UploadHandler(db *pgxpool.Pool) gin.HanderFunc {
 			}
 		}
 
-		c.JSON(http.StatusOK, g.H{"message": "File processed successfully"})
+		c.JSON(http.StatusOK, gin.H{"message": "File processed successfully"})
 	}
 }

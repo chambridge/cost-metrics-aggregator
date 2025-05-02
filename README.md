@@ -20,18 +20,17 @@ The Cost Metrics Aggregator is a Go-based application for collecting and aggrega
 .
 ├── Containerfile
 ├── go.mod                     # Go module dependencies
-├── internal/db/migrations/    # SQL migrations (e.g., 0001_init.sql)
+├── internal/db/migrations/    # SQL migrations (e.g., 0001_init.up.sql)
 ├── scripts/                   # Go scripts for partition management
 │   ├── create_partitions.go
 │   └── drop_partitions.go
 └── deploy/                    # OpenShift manifests
-    ├── namespace.yaml
-    ├── cost-metrics-db-secret.yaml
-    ├── postgres-deployment.yaml
-    ├── postgres-service.yaml
-    ├── deployment.yaml
-    ├── cronjob-create-partitions.yaml
-    └── cronjob-drop-partitions.yaml
+    ├── namespace.yml
+    ├── cost-metrics-db-secret.yml
+    ├── postgres-deployment.yml
+    ├── deployment.yml
+    ├── cronjob-create-partitions.yml
+    └── cronjob-drop-partitions.yml
 ```
 
 ## Database Schema

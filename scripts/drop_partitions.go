@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"github.com/chambridge/cost-metrics-aggregator/internal/config"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"log"
 	"time"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/chambridge/cost-metrics-aggregator/api/internal/config"
 )
 
 func main() {
@@ -23,10 +24,10 @@ func main() {
 	lastMonth := time.Now().AddDate(0, -1, 0)
 	year, month := lastMonth.Year(), lastMonth.Month()
 
-	for day :=1; day <= 31; day++ {
+	for day := 1; day <= 31; day++ {
 		partitionName := fmt.Sprintf("metrics_y%d_m%d_d%d", year, month, day)
 		_, err := db.Exec(context.Background(),
-			`DROP TABLE IF EXISTS %s`, partitionName))
+			`DROP TABLE IF EXISTS %s`, partitionName)
 		if err != nil {
 			log.Printf("Failed to drop partition %s: %v", partitionName, err)
 		}
