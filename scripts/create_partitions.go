@@ -1,31 +1,33 @@
 package main
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"log"
-	"os"
 	"time"
+
+	"github.com/chambridge/cost-metrics-aggregator/internal/config"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		log.Fatal("DATABASE_URL environment variable is required")
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	conn, err := sql.Open("postgres", dbURL)
+	db, err := pgxpool.New(context.Background(), cfg.DatabaseURL)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
-	defer conn.Close()
+	defer db.Close()
 
-	// Create partitions for the next 3 months
-	for i := 0; i < 3; i++ {
-		month := time.Now().AddDate(0, i, 0)
-		tableName := fmt.Sprintf("metrics_%s", month.Format("2006_01"))
-		startDate := month.Format("2006-01-01")
-		endDate := month.AddDate(0, 1, 0).Format("2006-01-01")
+	// Create daily partitions for the next 90 days
+	for i := 0; i < 90; i++ {
+		day := time.Now().AddDate(0, 0, i)
+		tableName := fmt.Sprintf("metrics_y%d_m%d_d%d", day.Year(), day.Month(), day.Day())
+		startDate := day.Format("2006-01-02")
+		endDate := day.AddDate(0, 0, 1).Format("2006-01-02")
 
 		query := fmt.Sprintf(`
 			CREATE TABLE IF NOT EXISTS %s (
@@ -35,7 +37,7 @@ func main() {
 			CREATE INDEX IF NOT EXISTS %s_timestamp_idx ON %s (timestamp);
 		`, tableName, startDate, endDate, tableName, tableName)
 
-		_, err = conn.Exec(query)
+		_, err = db.Exec(context.Background(), query)
 		if err != nil {
 			log.Fatalf("Failed to create partition %s: %v", tableName, err)
 		}
