@@ -17,13 +17,13 @@ spec:
     spec:
       initContainers:
       - name: init-db
-        image: quay.io/chambridge/cost-metrics-aggregator:latest
+        image: quay.io/chambrid/cost-metrics-aggregator:latest
         command:
         - /bin/sh
         - -c
         - |
           # Run database migrations (adjust command based on your migration tool)
-          migrate -path /app/migrations -database $DATABASE_URL up &&
+          migrate -path migrations -database $DATABASE_URL up &&
           # Run partition creation script
           go run /app/scripts/create_partitions.go
         env:
@@ -41,7 +41,7 @@ spec:
             memory: "256Mi"
       containers:
       - name: cost-metrics-aggregator
-        image: quay.io/chambridge/cost-metrics-aggregator:latest
+        image: quay.io/chambrid/cost-metrics-aggregator:latest
         env:
         - name: DATABASE_URL
           valueFrom:

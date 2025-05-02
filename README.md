@@ -71,7 +71,6 @@ podman push quay.io/chambridge/cost-metrics-aggregator:latest
    ```bash
    kubectl apply -f deploy/cost-metrics-db-secret.yml -n cost-metrics
    kubectl apply -f deploy/postgres-deployment.yml -n cost-metrics
-   kubectl apply -f deploy/postgres-service.yml -n cost-metrics
    ```
 
 4. Deploy the application:

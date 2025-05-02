@@ -1,0 +1,4 @@
+DROP TABLE IF EXISTS clusters;
+DROP TABLE IF EXISTS nodes;
+DROP TABLE IF EXISTS metrics;
+DROP TABLE IF EXISTS daily_summary;
