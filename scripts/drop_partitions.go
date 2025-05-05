@@ -17,21 +17,25 @@ func main() {
 
 	db, err := pgxpool.New(context.Background(), cfg.DatabaseURL)
 	if err != nil {
-		log.Fatalf("Falied to connect to database: %v", err)
+		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer db.Close()
 
+	// Get the previous month
 	lastMonth := time.Now().AddDate(0, -1, 0)
 	year, month := lastMonth.Year(), lastMonth.Month()
+	// Calculate the number of days in the previous month
+	daysInMonth := time.Date(year, month+1, 1, 0, 0, 0, 0, time.UTC).AddDate(0, 0, -1).Day()
 
-	for day := 1; day <= 31; day++ {
+	for day := 1; day <= daysInMonth; day++ {
 		partitionName := fmt.Sprintf("metrics_y%d_m%d_d%d", year, month, day)
-		_, err := db.Exec(context.Background(),
-			`DROP TABLE IF EXISTS %s`, partitionName)
+		_, err := db.Exec(context.Background(), `DROP TABLE IF EXISTS %s`, partitionName)
 		if err != nil {
 			log.Printf("Failed to drop partition %s: %v", partitionName, err)
+			continue
 		}
+		log.Printf("Dropped partition %s", partitionName)
 	}
 
-	log.Println("Successfully dropped last month's partitions")
+	log.Printf("Successfully dropped %d partitions for %d-%02d", daysInMonth, year, month)
 }

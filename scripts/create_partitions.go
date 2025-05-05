@@ -30,10 +30,9 @@ func main() {
 		endDate := day.AddDate(0, 0, 1).Format("2006-01-02")
 
 		query := fmt.Sprintf(`
-			CREATE TABLE IF NOT EXISTS %s (
-				LIKE metrics INCLUDING ALL,
-				CHECK (timestamp >= '%s' AND timestamp < '%s')
-			) INHERITS (metrics);
+			CREATE TABLE IF NOT EXISTS %s
+			PARTITION OF metrics
+			FOR VALUES FROM ('%s') TO ('%s');
 			CREATE INDEX IF NOT EXISTS %s_timestamp_idx ON %s (timestamp);
 		`, tableName, startDate, endDate, tableName, tableName)
 
