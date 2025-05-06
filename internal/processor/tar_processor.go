@@ -3,54 +3,187 @@ package processor
 import (
 	"archive/tar"
 	"compress/gzip"
-	"errors"
+	"context"
+	"encoding/csv"
+	"encoding/json"
+	"fmt"
 	"io"
+	"log"
 	"os"
-	"path/filepath"
+	"strings"
+
+	"github.com/chambridge/cost-metrics-aggregator/internal/config"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func ExtractTarGz(tarPath string) (manifest, nodeCSV string, err error) {
+// RequiredHeaders is the subset of CSV headers that must be present
+var RequiredHeaders = []string{
+	"report_period_start", "report_period_end", "interval_start", "interval_end",
+	"node", "namespace", "pod", "pod_usage_cpu_core_seconds",
+	"pod_request_cpu_core_seconds", "pod_limit_cpu_core_seconds",
+	"pod_usage_memory_byte_seconds", "pod_request_memory_byte_seconds",
+	"pod_limit_memory_byte_seconds", "node_capacity_cpu_cores",
+	"node_capacity_cpu_core_seconds", "node_capacity_memory_bytes",
+	"node_capacity_memory_byte_seconds", "node_role", "resource_id",
+	"pod_labels",
+}
+
+// Manifest represents the structure of manifest.json
+type Manifest struct {
+	ClusterID string   `json:"cluster_id"`
+	Files     []string `json:"files"`
+	CRStatus  struct {
+		ClusterID string `json:"clusterID"`
+		Source    struct {
+			Name         string `json:"name"`
+			CreateSource bool   `json:"create_source"`
+		} `json:"source"`
+	} `json:"cr_status"`
+}
+
+// ProcessTar processes a tar.gz archive, extracting manifest.json and valid CSVs
+func ProcessTar(ctx context.Context, tarPath string) error {
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	db, err := pgxpool.New(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return fmt.Errorf("failed to connect to database: %w", err)
+	}
+	defer db.Close()
+
 	file, err := os.Open(tarPath)
 	if err != nil {
-		return "", "", err
+		return fmt.Errorf("failed to open tar file: %w", err)
 	}
 	defer file.Close()
 
-	gz, err := gzip.NewReader(file)
+	gzr, err := gzip.NewReader(file)
 	if err != nil {
-		return "", "", err
+		return fmt.Errorf("failed to create gzip reader: %w", err)
 	}
-	defer gz.Close()
+	defer gzr.Close()
 
-	tr := tar.NewReader(gz)
+	tr := tar.NewReader(gzr)
+	var manifest Manifest
+
 	for {
 		header, err := tr.Next()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			return "", "", err
+			return fmt.Errorf("failed to read tar header: %w", err)
 		}
 
-		switch filepath.Base(header.Name) {
-		case "manifest.json":
+		filename := header.Name
+		if strings.HasSuffix(filename, "manifest.json") {
 			data, err := io.ReadAll(tr)
 			if err != nil {
-				return "", "", err
+				return fmt.Errorf("failed to read manifest.json: %w", err)
 			}
-			manifest = string(data)
-		case "node.csv":
-			data, err := io.ReadAll(tr)
+			if err := json.Unmarshal(data, &manifest); err != nil {
+				return fmt.Errorf("failed to parse manifest.json: %w", err)
+			}
+			log.Printf("Processed manifest.json: cluster_id=%s", manifest.ClusterID)
+
+			// Insert or update clusters table
+			clusterID, err := uuid.Parse(manifest.ClusterID)
 			if err != nil {
-				return "", "", err
+				return fmt.Errorf("invalid cluster_id %s: %w", manifest.ClusterID, err)
 			}
-			nodeCSV = string(data)
+			clusterName := manifest.ClusterID // Default to cluster_id
+			if manifest.CRStatus.Source.CreateSource {
+				clusterName = manifest.CRStatus.Source.Name
+			}
+			_, err = db.Exec(ctx, `
+				INSERT INTO clusters (id, name)
+				VALUES ($1, $2)
+				ON CONFLICT (id) DO UPDATE
+				SET name = EXCLUDED.name
+			`, clusterID, clusterName)
+			if err != nil {
+				return fmt.Errorf("failed to insert/update cluster %s: %w", clusterID, err)
+			}
+			log.Printf("Inserted/updated cluster: id=%s, name=%s", clusterID, clusterName)
 		}
 	}
 
-	if manifest == "" || nodeCSV == "" {
-		return "", "", errors.New("missing manifest.json or nodes.csv")
+	// Reset tar reader to process CSVs
+	file.Seek(0, io.SeekStart)
+	gzr.Reset(file)
+	tr = tar.NewReader(gzr)
+
+	// Process only CSVs listed in manifest.files
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("failed to read tar header: %w", err)
+		}
+
+		filename := header.Name
+		if !strings.HasSuffix(filename, ".csv") {
+			continue
+		}
+
+		// Check if filename is in manifest.files
+		isValidFile := false
+		for _, f := range manifest.Files {
+			if f == filename {
+				isValidFile = true
+				break
+			}
+		}
+		if !isValidFile {
+			log.Printf("Skipping %s: not listed in manifest.files", filename)
+			continue
+		}
+
+		// Read CSV content
+		data, err := io.ReadAll(tr)
+		if err != nil {
+			log.Printf("Failed to read %s: %v", filename, err)
+			continue
+		}
+		reader := csv.NewReader(strings.NewReader(string(data)))
+		headers, err := reader.Read()
+		if err != nil {
+			log.Printf("Skipping %s: failed to read headers: %v", filename, err)
+			continue
+		}
+
+		// Check if required headers are present
+		if hasRequiredHeaders(headers) {
+			log.Printf("Processing CSV file: %s", filename)
+			if err := ProcessCSV(ctx, db, reader, manifest.ClusterID); err != nil {
+				log.Printf("Failed to process %s: %v", filename, err)
+				continue
+			}
+			log.Printf("Successfully processed %s", filename)
+		} else {
+			log.Printf("Skipping %s: missing required headers", filename)
+		}
 	}
 
-	return manifest, nodeCSV, nil
+	return nil
+}
+
+// hasRequiredHeaders checks if all required headers are present in the CSV headers
+func hasRequiredHeaders(headers []string) bool {
+	headerSet := make(map[string]bool)
+	for _, h := range headers {
+		headerSet[h] = true
+	}
+	for _, required := range RequiredHeaders {
+		if !headerSet[required] {
+			return false
+		}
+	}
+	return true
 }

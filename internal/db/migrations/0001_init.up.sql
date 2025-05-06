@@ -2,7 +2,7 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE clusters (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY,
     name TEXT UNIQUE NOT NULL
 );
 
@@ -10,7 +10,7 @@ CREATE TABLE nodes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     cluster_id UUID REFERENCES clusters(id),
     name TEXT NOT NULL,
-    identifier TEXT UNIQUE NOT NULL,
+    identifier TEXT UNIQUE,
     type TEXT NOT NULL
 );
 
@@ -19,6 +19,7 @@ CREATE TABLE metrics (
     node_id UUID REFERENCES nodes(id),
     timestamp TIMESTAMPTZ NOT NULL,
     core_count INTEGER NOT NULL,
+    cluster_id UUID REFERENCES clusters(id),
     PRIMARY KEY (id, timestamp)
 ) PARTITION BY RANGE (timestamp);
 

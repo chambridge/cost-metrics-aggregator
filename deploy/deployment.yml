@@ -22,7 +22,7 @@ spec:
         args:
         - |
           migrate -path /app/migrations -database "$DATABASE_URL" up &&
-          /app/scripts/create_partitions
+          /app/scripts/create_partitions --init
         env:
         - name: DATABASE_URL
           valueFrom:
