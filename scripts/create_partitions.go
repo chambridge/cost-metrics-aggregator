@@ -42,25 +42,26 @@ func main() {
 	ctx := context.Background()
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
+		log.Printf("failed to load config: %w", err)
+		return
 	}
 
 	db, err := pgxpool.New(ctx, cfg.DatabaseURL)
 	if err != nil {
-		return fmt.Errorf("failed to connect to database: %w", err)
+		log.Printf("failed to connect to database: %w", err)
+		return
 	}
 	defer db.Close()
 
 	now := time.Now().UTC()
 	currentDate := now.Truncate(24 * time.Hour)
-	nextDate := currentDate.AddDate(0, 0, 1)
 
-	// Always create partitions for current and next day
-	if err := createPartition(ctx, db, currentDate); err != nil {
-		return err
-	}
-	if err := createPartition(ctx, db, nextDate); err != nil {
-		return err
+	// Create partitions for 90 days prior to now
+	endDate := currentDate.AddDate(0, 0, 90)
+	for d := currentDate; !d.After(endDate); d = d.AddDate(0, 0, 1) {
+		if err := createPartition(ctx, db, d); err != nil {
+			return
+		}
 	}
 
 	if init {
@@ -68,7 +69,7 @@ func main() {
 		startDate := currentDate.AddDate(0, 0, -90)
 		for d := startDate; !d.After(currentDate); d = d.AddDate(0, 0, 1) {
 			if err := createPartition(ctx, db, d); err != nil {
-				return err
+				return
 			}
 		}
 	}
