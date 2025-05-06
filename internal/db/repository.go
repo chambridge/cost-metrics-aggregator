@@ -12,14 +12,14 @@ import (
 
 // DailySummary represents a row in the daily_summary table
 type DailySummary struct {
-	NodeID         uuid.UUID
 	Date           time.Time
-	CoreCount      int
-	TotalHours     int
 	ClusterID      uuid.UUID
 	ClusterName    string
 	NodeName       string
 	NodeIdentifier string
+	NodeType       string
+	CoreCount      int
+	TotalHours     int
 }
 
 type Repository struct {
@@ -72,14 +72,14 @@ func (r *Repository) UpdateDailySummary(nodeID uuid.UUID, timestamp time.Time, c
 func (r *Repository) QueryMetrics(start, end time.Time, clusterID, clusterName, nodeType string) ([]DailySummary, error) {
 	query := `
 		SELECT 
-			ds.node_id, 
-			ds.date, 
-			ds.core_count, 
-			ds.total_hours,
+			ds.date,
 			c.id AS cluster_id,
 			c.name AS cluster_name,
 			n.name AS node_name,
-			COALESCE(n.identifier, '') AS node_identifier
+			COALESCE(n.identifier, '') AS node_identifier,
+			COALESCE(n.type, '') AS node_type,
+			ds.core_count, 
+			ds.total_hours
 		FROM daily_summary ds
 		JOIN nodes n ON ds.node_id = n.id
 		JOIN clusters c ON n.cluster_id = c.id
@@ -107,20 +107,21 @@ func (r *Repository) QueryMetrics(start, end time.Time, clusterID, clusterName, 
 	var summaries []DailySummary
 	for rows.Next() {
 		var s DailySummary
-		var nodeIdentifier sql.NullString
+		var nodeIdentifier, nodeType sql.NullString
 		if err := rows.Scan(
-			&s.NodeID,
 			&s.Date,
-			&s.CoreCount,
-			&s.TotalHours,
 			&s.ClusterID,
 			&s.ClusterName,
 			&s.NodeName,
 			&nodeIdentifier,
+			&nodeType,
+			&s.CoreCount,
+			&s.TotalHours,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
 		s.NodeIdentifier = nodeIdentifier.String
+		s.NodeType = nodeType.String
 		summaries = append(summaries, s)
 	}
 	if err := rows.Err(); err != nil {
