@@ -91,6 +91,7 @@ podman push quay.io/chambridge/cost-metrics-aggregator:latest
 
 2. Verify migrations and initial partitions:
    ```bash
+   kubectl get pods -n cost-metrics -l app=cost-metrics-aggregator
    kubectl logs <aggregator-pod-name> -c init-db -n cost-metrics
    ```
 
@@ -107,13 +108,13 @@ podman push quay.io/chambridge/cost-metrics-aggregator:latest
     ```
 
 ## Partition Management
-- **Creation**: The `create_partitions.go` script (run by the initContainer and `cronjob-create-partitions`) creates `metrics` table partitions for the next 3 months, named `metrics_YYYY_MM`.
+- **Creation**: The `create_partitions.go` script (run by the initContainer and `cronjob-create-partitions`) creates `metrics` table partitions for the next 3 months.
 - **Deletion**: The `drop_partitions.go` script (run by `cronjob-drop-partitions`) drops partitions older than 6 months.
 - Both CronJobs run monthly on the 1st at midnight (`0 0 1 * *`).
 
 ## Endpoints
 - POST /api/ingres/v1/upload: Uplaod a tar.gz file containing manifest.json and node.csv
-- GET /api/metrics/v1/ndoes: Query node core count with optional filters (start_date, end_date, cluster_id, cluster_name, node_type).
+- GET /api/metrics/v1/nodes: Query node core count with optional filters (start_date, end_date, cluster_id, cluster_name, node_type).
 
 ## Troubleshooting
 - **Build Failures**: Check Quay.io build logs for missing files or network issues (e.g., `migrate` download).

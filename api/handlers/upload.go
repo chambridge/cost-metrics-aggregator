@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"github.com/chambridge/cost-metrics-aggregator/internal/db"
 	"github.com/chambridge/cost-metrics-aggregator/internal/processor"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -40,7 +41,8 @@ func UploadHandler(database *pgxpool.Pool) gin.HandlerFunc {
 			return
 		}
 
-		err = processor.ProcessTar(c, tarPath)
+		repo := db.NewRepository(database)
+		err = processor.ProcessTar(c, tarPath, repo)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to process tar.gz: " + err.Error()})
 			return

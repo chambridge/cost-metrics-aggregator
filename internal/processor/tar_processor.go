@@ -12,9 +12,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/chambridge/cost-metrics-aggregator/internal/config"
+	"github.com/chambridge/cost-metrics-aggregator/internal/db"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // RequiredHeaders is the subset of CSV headers that must be present
@@ -42,18 +41,7 @@ type Manifest struct {
 }
 
 // ProcessTar processes a tar.gz archive, extracting manifest.json and valid CSVs
-func ProcessTar(ctx context.Context, tarPath string) error {
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
-
-	db, err := pgxpool.New(ctx, cfg.DatabaseURL)
-	if err != nil {
-		return fmt.Errorf("failed to connect to database: %w", err)
-	}
-	defer db.Close()
-
+func ProcessTar(ctx context.Context, tarPath string, repo *db.Repository) error {
 	file, err := os.Open(tarPath)
 	if err != nil {
 		return fmt.Errorf("failed to open tar file: %w", err)
@@ -89,7 +77,7 @@ func ProcessTar(ctx context.Context, tarPath string) error {
 			}
 			log.Printf("Processed manifest.json: cluster_id=%s", manifest.ClusterID)
 
-			// Insert or update clusters table
+			// Insert or update clusters using Repository
 			clusterID, err := uuid.Parse(manifest.ClusterID)
 			if err != nil {
 				return fmt.Errorf("invalid cluster_id %s: %w", manifest.ClusterID, err)
@@ -98,12 +86,7 @@ func ProcessTar(ctx context.Context, tarPath string) error {
 			if manifest.CRStatus.Source.Name != "" {
 				clusterName = manifest.CRStatus.Source.Name
 			}
-			_, err = db.Exec(ctx, `
-				INSERT INTO clusters (id, name)
-				VALUES ($1, $2)
-				ON CONFLICT (id) DO UPDATE
-				SET name = EXCLUDED.name
-			`, clusterID, clusterName)
+			err = repo.UpsertCluster(clusterID, clusterName)
 			if err != nil {
 				return fmt.Errorf("failed to insert/update cluster %s: %w", clusterID, err)
 			}
@@ -160,7 +143,7 @@ func ProcessTar(ctx context.Context, tarPath string) error {
 		// Check if required headers are present
 		if hasRequiredHeaders(headers) {
 			log.Printf("Processing CSV file: %s", filename)
-			if err := ProcessCSV(ctx, db, reader, manifest.ClusterID); err != nil {
+			if err := ProcessCSV(ctx, repo, reader, manifest.ClusterID); err != nil {
 				log.Printf("Failed to process %s: %v", filename, err)
 				continue
 			}
