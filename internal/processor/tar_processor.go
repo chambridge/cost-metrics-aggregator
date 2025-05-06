@@ -36,8 +36,7 @@ type Manifest struct {
 	CRStatus  struct {
 		ClusterID string `json:"clusterID"`
 		Source    struct {
-			Name         string `json:"name"`
-			CreateSource bool   `json:"create_source"`
+			Name string `json:"name"`
 		} `json:"source"`
 	} `json:"cr_status"`
 }
@@ -96,7 +95,7 @@ func ProcessTar(ctx context.Context, tarPath string) error {
 				return fmt.Errorf("invalid cluster_id %s: %w", manifest.ClusterID, err)
 			}
 			clusterName := manifest.ClusterID // Default to cluster_id
-			if manifest.CRStatus.Source.CreateSource {
+			if manifest.CRStatus.Source.Name != "" {
 				clusterName = manifest.CRStatus.Source.Name
 			}
 			_, err = db.Exec(ctx, `

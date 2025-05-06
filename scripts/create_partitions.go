@@ -1,4 +1,4 @@
-package partitions
+package main
 
 import (
 	"context"
@@ -34,7 +34,7 @@ func createPartition(ctx context.Context, db *pgxpool.Pool, date time.Time) erro
 }
 
 // CreatePartitions creates daily partitions for the metrics table
-func CreatePartitions() error {
+func main() {
 	var init bool
 	flag.BoolVar(&init, "init", false, "Initialize partitions for 90 days prior and current day")
 	flag.Parse()
@@ -72,6 +72,4 @@ func CreatePartitions() error {
 			}
 		}
 	}
-
-	return nil
 }
