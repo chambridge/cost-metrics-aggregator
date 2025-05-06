@@ -16,18 +16,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// RequiredHeaders is the subset of CSV headers that must be present
-var RequiredHeaders = []string{
-	"report_period_start", "report_period_end", "interval_start", "interval_end",
-	"node", "namespace", "pod", "pod_usage_cpu_core_seconds",
-	"pod_request_cpu_core_seconds", "pod_limit_cpu_core_seconds",
-	"pod_usage_memory_byte_seconds", "pod_request_memory_byte_seconds",
-	"pod_limit_memory_byte_seconds", "node_capacity_cpu_cores",
-	"node_capacity_cpu_core_seconds", "node_capacity_memory_bytes",
-	"node_capacity_memory_byte_seconds", "node_role", "resource_id",
-	"pod_labels",
-}
-
 // Manifest represents the structure of manifest.json
 type Manifest struct {
 	ClusterID string   `json:"cluster_id"`
@@ -134,38 +122,13 @@ func ProcessTar(ctx context.Context, tarPath string, repo *db.Repository) error 
 			continue
 		}
 		reader := csv.NewReader(strings.NewReader(string(data)))
-		headers, err := reader.Read()
-		if err != nil {
-			log.Printf("Skipping %s: failed to read headers: %v", filename, err)
+		log.Printf("Processing CSV file: %s", filename)
+		if err := ProcessCSV(ctx, repo, reader, manifest.ClusterID); err != nil {
+			log.Printf("Failed to process %s: %v", filename, err)
 			continue
 		}
-
-		// Check if required headers are present
-		if hasRequiredHeaders(headers) {
-			log.Printf("Processing CSV file: %s", filename)
-			if err := ProcessCSV(ctx, repo, reader, manifest.ClusterID); err != nil {
-				log.Printf("Failed to process %s: %v", filename, err)
-				continue
-			}
-			log.Printf("Successfully processed %s", filename)
-		} else {
-			log.Printf("Skipping %s: missing required headers", filename)
-		}
+		log.Printf("Successfully processed %s", filename)
 	}
 
 	return nil
-}
-
-// hasRequiredHeaders checks if all required headers are present in the CSV headers
-func hasRequiredHeaders(headers []string) bool {
-	headerSet := make(map[string]bool)
-	for _, h := range headers {
-		headerSet[h] = true
-	}
-	for _, required := range RequiredHeaders {
-		if !headerSet[required] {
-			return false
-		}
-	}
-	return true
 }

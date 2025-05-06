@@ -13,6 +13,18 @@ import (
 	"github.com/google/uuid"
 )
 
+// RequiredHeaders is the subset of CSV headers that must be present
+var RequiredHeaders = []string{
+	"report_period_start", "report_period_end", "interval_start", "interval_end",
+	"node", "namespace", "pod", "pod_usage_cpu_core_seconds",
+	"pod_request_cpu_core_seconds", "pod_limit_cpu_core_seconds",
+	"pod_usage_memory_byte_seconds", "pod_request_memory_byte_seconds",
+	"pod_limit_memory_byte_seconds", "node_capacity_cpu_cores",
+	"node_capacity_cpu_core_seconds", "node_capacity_memory_bytes",
+	"node_capacity_memory_byte_seconds", "node_role", "resource_id",
+	"pod_labels",
+}
+
 // ProcessCSV processes a CSV reader, extracting distinct node data and inserting into nodes, metrics, and daily_summary
 func ProcessCSV(ctx context.Context, repo *db.Repository, reader *csv.Reader, clusterID string) error {
 	// Configure CSV reader
@@ -38,14 +50,15 @@ func ProcessCSV(ctx context.Context, repo *db.Repository, reader *csv.Reader, cl
 		headerIndices[strings.TrimSpace(h)] = i
 	}
 
+	log.Printf("Headers: %v", headers)
+	log.Printf("Header indices: %v", headerIndices)
+
 	// Validate headers
 	for _, required := range RequiredHeaders {
 		if _, exists := headerIndices[required]; !exists {
 			return fmt.Errorf("missing required header: %s", required)
 		}
 	}
-	log.Printf("Headers: %v", headers)
-	log.Printf("Header indices: %v", headerIndices)
 
 	// Process each record
 	for i, record := range records[1:] {
