@@ -12,16 +12,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// NodeData represents distinct node information for an hourly interval
-type NodeData struct {
-	NodeName         string
-	ResourceID       string
-	NodeRole         string
-	CapacityCPUCores float64
-	IntervalStart    time.Time
-	ClusterID        string
-}
-
 // ProcessCSV processes a CSV reader, extracting distinct node data and inserting into nodes, metrics, and daily_summary
 func ProcessCSV(ctx context.Context, repo *db.Repository, reader *csv.Reader, clusterID string) error {
 	// Read all records
@@ -53,7 +43,7 @@ func ProcessCSV(ctx context.Context, repo *db.Repository, reader *csv.Reader, cl
 		nodeRole := record[headerIndices["node_role"]]
 		capacityCPUStr := record[headerIndices["node_capacity_cpu_cores"]]
 
-		intervalStart, err := time.Parse(time.RFC3339, intervalStartStr)
+		intervalStart, err := time.Parse("2006-01-02 15:04:05 +0000 MST", intervalStartStr)
 		if err != nil {
 			log.Printf("Skipping record: invalid interval_start %s: %v", intervalStartStr, err)
 			continue
