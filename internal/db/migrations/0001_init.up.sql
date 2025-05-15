@@ -32,7 +32,7 @@ CREATE TABLE node_daily_summary (
 );
 
 CREATE TABLE pods (
-    id UUID NOT NULL DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     cluster_id UUID NOT NULL REFERENCES clusters(id),
     node_id UUID NOT NULL REFERENCES nodes(id),
     name TEXT NOT NULL,
