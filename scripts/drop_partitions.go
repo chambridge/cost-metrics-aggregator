@@ -28,13 +28,21 @@ func main() {
 	daysInMonth := time.Date(year, month+1, 1, 0, 0, 0, 0, time.UTC).AddDate(0, 0, -1).Day()
 
 	for day := 1; day <= daysInMonth; day++ {
-		partitionName := fmt.Sprintf("metrics_y%d_m%d_d%d", year, month, day)
-		_, err := db.Exec(context.Background(), `DROP TABLE IF EXISTS %s`, partitionName)
+		nodeMetricsPartitionName := fmt.Sprintf("node_metrics_y%d_m%d_d%d", year, month, day)
+		_, err := db.Exec(context.Background(), `DROP TABLE IF EXISTS %s`, nodeMetricsPartitionName)
 		if err != nil {
-			log.Printf("Failed to drop partition %s: %v", partitionName, err)
+			log.Printf("Failed to drop partition %s: %v", nodeMetricsPartitionName, err)
 			continue
 		}
-		log.Printf("Dropped partition %s", partitionName)
+		log.Printf("Dropped partition %s", nodeMetricsPartitionName)
+
+		podMetricsPartitionName := fmt.Sprintf("pod_metrics_y%d_m%d_d%d", year, month, day)
+		_, err = db.Exec(context.Background(), `DROP TABLE IF EXISTS %s`, podMetricsPartitionName)
+		if err != nil {
+			log.Printf("Failed to drop partition %s: %v", podMetricsPartitionName, err)
+			continue
+		}
+		log.Printf("Dropped partition %s", podMetricsPartitionName)
 	}
 
 	log.Printf("Successfully dropped %d partitions for %d-%02d", daysInMonth, year, month)

@@ -11,16 +11,16 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// createPartition creates a daily partition for the metrics table for the given date
-func createPartition(ctx context.Context, db *pgxpool.Pool, date time.Time) error {
+// createNodeMetricsPartition creates a daily partition for the node_metrics table for the given date
+func createNodeMetricsPartition(ctx context.Context, db *pgxpool.Pool, date time.Time) error {
 	year, month, day := date.Year(), int(date.Month()), date.Day()
-	partitionName := fmt.Sprintf("metrics_y%d_m%d_d%d", year, month, day)
+	partitionName := fmt.Sprintf("node_metrics_y%d_m%d_d%d", year, month, day)
 	startDate := date
 	endDate := startDate.AddDate(0, 0, 1)
 
 	query := fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS %s
-		PARTITION OF metrics
+		PARTITION OF node_metrics
 		FOR VALUES FROM ('%s') TO ('%s');
 		CREATE INDEX IF NOT EXISTS %s_timestamp_idx ON %s (timestamp)
 	`, partitionName, startDate.Format("2006-01-02"), endDate.Format("2006-01-02"), partitionName, partitionName)
@@ -33,7 +33,26 @@ func createPartition(ctx context.Context, db *pgxpool.Pool, date time.Time) erro
 	return nil
 }
 
-// CreatePartitions creates daily partitions for the metrics table
+func createPodMetricPartitions(ctx context.Context, pool *pgxpool.Pool, date time.Time) error {
+	year, month, day := date.Year(), int(date.Month()), date.Day()
+	partitionName := fmt.Sprintf("pod_metrics_y%d_m%d_d%d", year, month, day)
+	startDate := date
+	endDate := startDate.AddDate(0, 0, 1)
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s
+		PARTITION OF pod_metrics
+		FOR VALUES FROM ('%s') TO ('%s');
+		CREATE INDEX IF NOT EXISTS %s_timestamp_idx ON %s (timestamp)`,
+		partitionName, startDate.Format("2006-01-02"), endDate.Format("2006-01-02"), partitionName, partitionName)
+	_, err := pool.Exec(ctx, query)
+	if err != nil {
+		return fmt.Errorf("failed to create pod_metrics partition %s: %w", partitionName, err)
+	}
+	log.Printf("Created pod_metrics partition: %s", partitionName)
+	return nil
+}
+
+// CreatePartitions creates daily partitions for the node_metrics and pod_metrics tables
 func main() {
 	var init bool
 	flag.BoolVar(&init, "init", false, "Initialize partitions for 90 days prior and current day")
@@ -59,7 +78,10 @@ func main() {
 	// Create partitions for 90 days prior to now
 	endDate := currentDate.AddDate(0, 0, 90)
 	for d := currentDate; !d.After(endDate); d = d.AddDate(0, 0, 1) {
-		if err := createPartition(ctx, db, d); err != nil {
+		if err := createNodeMetricsPartition(ctx, db, d); err != nil {
+			return
+		}
+		if err := createPodMetricPartitions(ctx, db, d); err != nil {
 			return
 		}
 	}
@@ -68,7 +90,10 @@ func main() {
 		// Create partitions for 90 days prior to now
 		startDate := currentDate.AddDate(0, 0, -90)
 		for d := startDate; !d.After(currentDate); d = d.AddDate(0, 0, 1) {
-			if err := createPartition(ctx, db, d); err != nil {
+			if err := createNodeMetricsPartition(ctx, db, d); err != nil {
+				return
+			}
+			if err := createPodMetricPartitions(ctx, db, d); err != nil {
 				return
 			}
 		}

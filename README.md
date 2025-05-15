@@ -75,6 +75,8 @@ podman push quay.io/chambridge/cost-metrics-aggregator:latest
 4. Deploy the application:
    ```bash
    kubectl apply -f deploy/deployment.yml -n cost-metrics
+   kubectl apply -f deploy/service.yml -n cost-metrics
+   kubectl apply -f deploy/route.yml -n cost-metrics
    ```
 
 5. Deploy CronJobs for partition management:

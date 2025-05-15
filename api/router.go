@@ -13,7 +13,8 @@ func SetupRouter(db *pgxpool.Pool, cfg *config.Config) *gin.Engine {
 	api := r.Group("/api")
 	{
 		api.POST("/ingress/v1/upload", handlers.UploadHandler(db))
-		api.GET("/metrics/v1/nodes", handlers.QueryMetricsHandler(db))
+		api.GET("/metrics/v1/nodes", handlers.QueryNodeMetricsHandler(db))
+		api.GET("/metrics/v1/pods", handlers.QueryPodMetricsHandler(db))
 	}
 
 	return r

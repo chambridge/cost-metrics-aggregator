@@ -1,4 +1,7 @@
 DROP TABLE IF EXISTS clusters;
 DROP TABLE IF EXISTS nodes;
-DROP TABLE IF EXISTS metrics;
-DROP TABLE IF EXISTS daily_summary;
+DROP TABLE IF EXISTS node_metrics;
+DROP TABLE IF EXISTS node_daily_summary;
+DROP TABLE IF EXISTS pods;
+DROP TABLE IF EXISTS pod_metrics;
+DROP TABLE IF EXISTS pod_daily_summary;
