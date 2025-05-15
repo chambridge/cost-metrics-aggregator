@@ -37,8 +37,8 @@ The Cost Metrics Aggregator is a Go-based application for collecting and aggrega
 The database schema (`internal/db/migrations/0001_init.sql`) defines:
 - `clusters`: Stores cluster metadata with UUID `id`.
 - `nodes`: Stores node metadata with UUID `id`, referencing `clusters`.
-- `metrics`: Stores time-series metrics with UUID `id`, partitioned by `timestamp`.
-- `daily_summary`: Aggregates daily metrics by `node_id`, `date`, and `core_count`.
+- `node_metrics`: Stores time-series metrics with UUID `id`, partitioned by `timestamp`.
+- `node_daily_summary`: Aggregates daily metrics by `node_id`, `date`, and `core_count`.
 
 The `id` columns use UUIDs (via `gen_random_uuid()`) for unique identification. The `metrics` table is partitioned monthly by `timestamp`.
 
