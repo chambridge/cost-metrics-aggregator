@@ -131,7 +131,7 @@ func (r *Repository) QueryNodeMetrics(start, end time.Time, clusterID, clusterNa
 			COALESCE(n.type, '') AS node_type,
 			ds.core_count, 
 			ds.total_hours
-		FROM daily_summary ds
+		FROM node_daily_summary ds
 		JOIN nodes n ON ds.node_id = n.id
 		JOIN clusters c ON n.cluster_id = c.id
 		WHERE ds.date BETWEEN $1 AND $2`

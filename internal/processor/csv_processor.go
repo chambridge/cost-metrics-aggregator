@@ -26,7 +26,7 @@ var RequiredHeaders = []string{
 	"pod_labels",
 }
 
-// ProcessCSV processes a CSV reader, extracting distinct node data and inserting into nodes, metrics, and daily_summary
+// ProcessCSV processes a CSV reader, extracting distinct node data and inserting into data tables
 func ProcessCSV(ctx context.Context, repo *db.Repository, reader *csv.Reader, clusterID string) error {
 	// Configure CSV reader
 	reader.Comma = ','
