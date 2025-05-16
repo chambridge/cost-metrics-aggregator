@@ -100,8 +100,7 @@ func (r *Repository) InsertPodMetric(podID uuid.UUID, timestamp time.Time, podUs
 			id, pod_id, timestamp, pod_usage_cpu_core_seconds, 
 			pod_request_cpu_core_seconds, node_capacity_cpu_core_seconds, 
 			node_capacity_cpu_cores
-		) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6)
-		 ON CONFLICT (id) DO NOTHING`,
+		) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6)`,
 		podID, timestamp, podUsage, podRequest, nodeCapacityCPUCoreSeconds, nodeCapacityCPUCores)
 	return err
 }
