@@ -97,10 +97,15 @@ func (r *Repository) UpsertPod(clusterID, nodeID uuid.UUID, name, namespace, com
 func (r *Repository) InsertPodMetric(podID uuid.UUID, timestamp time.Time, podUsage, podRequest, nodeCapacityCPUCoreSeconds float64, nodeCapacityCPUCores int) error {
 	_, err := r.db.Exec(context.Background(),
 		`INSERT INTO pod_metrics (
-			id, pod_id, timestamp, pod_usage_cpu_core_seconds, 
+			pod_id, timestamp, pod_usage_cpu_core_seconds, 
 			pod_request_cpu_core_seconds, node_capacity_cpu_core_seconds, 
 			node_capacity_cpu_cores
-		) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6)`,
+		) VALUES ($1, $2, $3, $4, $5, $6)
+		 ON CONFLICT (pod_id, timestamp) DO UPDATE
+		 SET pod_usage_cpu_core_seconds = pod_metrics.pod_usage_cpu_core_seconds + EXCLUDED.pod_usage_cpu_core_seconds,
+		     pod_request_cpu_core_seconds = pod_metrics.pod_request_cpu_core_seconds + EXCLUDED.pod_request_cpu_core_seconds,
+		     node_capacity_cpu_core_seconds = EXCLUDED.node_capacity_cpu_core_seconds,
+		     node_capacity_cpu_cores = EXCLUDED.node_capacity_cpu_cores`,
 		podID, timestamp, podUsage, podRequest, nodeCapacityCPUCoreSeconds, nodeCapacityCPUCores)
 	return err
 }

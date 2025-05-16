@@ -26,3 +26,5 @@ go.work.sum
 
 deploy/cost-metrics-db-secret.yml
 data
+
+server

@@ -40,8 +40,7 @@ CREATE TABLE pods (
     UNIQUE(name, namespace, cluster_id)
 );
 
-CREATE TABLE pod_metrics (
-    id UUID NOT NULL DEFAULT gen_random_uuid(),
+CREATE TABLE IF NOT EXISTS pod_metrics (
     pod_id UUID NOT NULL REFERENCES pods(id),
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
     pod_usage_cpu_core_seconds DOUBLE PRECISION NOT NULL,
@@ -57,7 +56,8 @@ CREATE TABLE pod_metrics (
             THEN GREATEST(pod_usage_cpu_core_seconds, pod_request_cpu_core_seconds) / node_capacity_cpu_core_seconds
             ELSE 0
         END
-    ) STORED
+    ) STORED,
+    PRIMARY KEY (pod_id, timestamp)
 ) PARTITION BY RANGE (timestamp);
 
 CREATE TABLE pod_daily_summary (
