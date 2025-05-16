@@ -15,12 +15,11 @@ CREATE TABLE nodes (
 );
 
 CREATE TABLE node_metrics (
-    id UUID NOT NULL DEFAULT gen_random_uuid(),
     node_id UUID REFERENCES nodes(id),
     timestamp TIMESTAMPTZ NOT NULL,
     core_count INTEGER NOT NULL,
     cluster_id UUID REFERENCES clusters(id),
-    PRIMARY KEY (id, timestamp)
+    PRIMARY KEY (node_id, timestamp)
 ) PARTITION BY RANGE (timestamp);
 
 CREATE TABLE node_daily_summary (
