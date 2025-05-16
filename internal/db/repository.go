@@ -77,7 +77,7 @@ func (r *Repository) UpdateNodeDailySummary(nodeID uuid.UUID, timestamp time.Tim
 		`INSERT INTO node_daily_summary (node_id, date, core_count, total_hours)
 		 VALUES ($1, $2, $3, 1)
 		 ON CONFLICT (node_id, date, core_count)
-		 DO UPDATE SET total_hours = GREATEST(node_daily_summary.total_hours, 1)`,
+		 DO UPDATE SET total_hours = node_daily_summary.total_hours + 1`,
 		nodeID, date, coreCount)
 	return err
 }
