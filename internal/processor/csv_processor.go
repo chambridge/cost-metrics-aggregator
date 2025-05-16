@@ -72,6 +72,17 @@ func ProcessCSV(ctx context.Context, repo *db.Repository, reader *csv.Reader, cl
 		podLabelKeySet[strings.TrimSpace(key)] = struct{}{}
 	}
 
+	// Track node metrics (nodeID -> timestamp -> coreCount)
+	nodeMetrics := make(map[uuid.UUID]map[time.Time]int)
+	// Track pod metrics (podID -> timestamp -> {usage, request, nodeCapacity})
+	type podMetric struct {
+		usage     float64
+		request   float64
+		nodeCap   float64
+		coreCount int
+	}
+	podMetrics := make(map[uuid.UUID]map[time.Time]podMetric)
+
 	// Process each record
 	for i, record := range records[1:] {
 		if len(record) != len(headers) {
@@ -153,12 +164,11 @@ func ProcessCSV(ctx context.Context, repo *db.Repository, reader *csv.Reader, cl
 			continue
 		}
 
-		// Update node_daily_summary using Repository
-		err = repo.UpdateNodeDailySummary(nodeID, intervalStart, int(capacityCPU))
-		if err != nil {
-			log.Printf("Skipping record %d: failed to update node_daily_summary for node %s on %s: %v", i+1, nodeID, intervalStart, err)
-			continue
+		// Track node metrics for daily summary
+		if _, ok := nodeMetrics[nodeID]; !ok {
+			nodeMetrics[nodeID] = make(map[time.Time]int)
 		}
+		nodeMetrics[nodeID][intervalStart] = int(capacityCPU)
 
 		// Process pod if it has a matching label key
 		labels := strings.Split(podLabels, "|")
@@ -200,19 +210,54 @@ func ProcessCSV(ctx context.Context, repo *db.Repository, reader *csv.Reader, cl
 			continue
 		}
 
-		// Update pod_daily_summary
-		podEffectiveCoreSeconds := podUsage
-		if podRequest > podUsage {
-			podEffectiveCoreSeconds = podRequest
+		// Track pod metrics for daily summary
+		if _, ok := podMetrics[podID]; !ok {
+			podMetrics[podID] = make(map[time.Time]podMetric)
 		}
-		podEffectiveCoreUsage := 0.0
-		if nodeCapacityCPUCoreSeconds > 0 {
-			podEffectiveCoreUsage = podEffectiveCoreSeconds / nodeCapacityCPUCoreSeconds
+		if metric, ok := podMetrics[podID][intervalStart]; ok {
+			// Aggregate usage and request, keep latest node capacity
+			metric.usage += podUsage
+			metric.request += podRequest
+			metric.nodeCap = nodeCapacityCPUCoreSeconds
+			metric.coreCount = int(capacityCPU)
+			podMetrics[podID][intervalStart] = metric
+		} else {
+			podMetrics[podID][intervalStart] = podMetric{
+				usage:     podUsage,
+				request:   podRequest,
+				nodeCap:   nodeCapacityCPUCoreSeconds,
+				coreCount: int(capacityCPU),
+			}
 		}
-		err = repo.UpdatePodDailySummary(podID, intervalStart, podEffectiveCoreSeconds, podEffectiveCoreUsage)
-		if err != nil {
-			log.Printf("Skipping record %d: failed to update pod_daily_summary for pod %s on %s: %v", i+1, podName, intervalStart, err)
-			continue
+	}
+
+	// Update node daily summaries after processing all records
+	for nodeID, timestamps := range nodeMetrics {
+		for ts, coreCount := range timestamps {
+			err := repo.UpdateNodeDailySummary(nodeID, ts, coreCount)
+			if err != nil {
+				log.Printf("Failed to update node_daily_summary for node %s at %s: %v", nodeID, ts, err)
+				continue
+			}
+		}
+	}
+
+	// Update pod daily summaries after processing all records
+	for podID, timestamps := range podMetrics {
+		for ts, metric := range timestamps {
+			podEffectiveCoreSeconds := metric.usage
+			if metric.request > metric.usage {
+				podEffectiveCoreSeconds = metric.request
+			}
+			podEffectiveCoreUsage := 0.0
+			if metric.nodeCap > 0 {
+				podEffectiveCoreUsage = podEffectiveCoreSeconds / metric.nodeCap
+			}
+			err := repo.UpdatePodDailySummary(podID, ts, podEffectiveCoreSeconds, podEffectiveCoreUsage)
+			if err != nil {
+				log.Printf("Failed to update pod_daily_summary for pod %s at %s: %v", podID, ts, err)
+				continue
+			}
 		}
 	}
 
