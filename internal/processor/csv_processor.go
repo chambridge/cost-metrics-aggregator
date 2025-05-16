@@ -119,8 +119,8 @@ func ProcessCSV(ctx context.Context, repo *db.Repository, reader *csv.Reader, cl
 
 		podRequest, err := strconv.ParseFloat(podRequestStr, 64)
 		if err != nil {
-			log.Printf("Skipping record %d: invalid pod_request_cpu_core_seconds %s: %v", i+1, podRequestStr, err)
-			continue
+			log.Printf("Record %d: invalid pod_request_cpu_core_seconds %s: %v - setting to 0.0", i+1, podRequestStr, err)
+			podRequest = 0.0
 		}
 
 		nodeCapacityCPUCoreSeconds, err := strconv.ParseFloat(nodeCapacityCPUCoreSecondsStr, 64)

@@ -100,7 +100,7 @@ podman push quay.io/chambridge/cost-metrics-aggregator:latest
 3. Connect to the database:
    ```bash
    kubectl exec -it <postgres-pod-name> -n cost-metrics -- psql -U costmetrics -d costmetrics
-   \dt+ metrics*  # List partitions
+   \dt+ node_metrics*  # List partitions
    ```
 
 4. Check CronJob execution:
@@ -110,8 +110,8 @@ podman push quay.io/chambridge/cost-metrics-aggregator:latest
     ```
 
 ## Partition Management
-- **Creation**: The `create_partitions.go` script (run by the initContainer and `cronjob-create-partitions`) creates `metrics` table partitions for the next 3 months.
-- **Deletion**: The `drop_partitions.go` script (run by `cronjob-drop-partitions`) drops partitions older than 6 months.
+- **Creation**: The `create_partitions.go` script (run by the initContainer and `cronjob-create-partitions`) creates `metrics` table partitions for the previous and next 90 days.
+- **Deletion**: The `drop_partitions.go` script (run by `cronjob-drop-partitions`) drops partitions older than 90 days.
 - Both CronJobs run monthly on the 1st at midnight (`0 0 1 * *`).
 
 ## Endpoints
