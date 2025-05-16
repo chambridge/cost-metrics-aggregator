@@ -48,6 +48,6 @@ func UploadHandler(database *pgxpool.Pool) gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "File processed successfully"})
+		c.JSON(http.StatusAccepted, gin.H{"message": "File processed successfully"})
 	}
 }
