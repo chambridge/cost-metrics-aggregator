@@ -28,3 +28,4 @@ deploy/cost-metrics-db-secret.yml
 data
 
 server
+db.env
