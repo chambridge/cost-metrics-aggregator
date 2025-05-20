@@ -12,11 +12,7 @@ spec:
           containers:
           - name: drop-partitions
             image: quay.io/chambridge/cost-metrics-aggregator:latest
-            command:
-            - /bin/sh
-            - -c
-            - |
-              go run /app/scripts/drop_partitions.go
+            command: ["/app/drop"]
             env:
             - name: DATABASE_URL
               valueFrom:

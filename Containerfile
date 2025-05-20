@@ -15,8 +15,9 @@ COPY scripts/ /app/scripts/
 
 # Compile Go programs into binaries
 RUN go build -o /app/server /app/cmd/server/main.go
-RUN go build -o /app/scripts/create_partitions /app/scripts/create_partitions.go
-RUN go build -o /app/scripts/drop_partitions /app/scripts/drop_partitions.go
+RUN go build -o /app/create ./scripts/create/main.go
+RUN go build -o /app/drop ./scripts/drop/main.go
+
 
 # Runtime stage
 FROM registry.access.redhat.com/ubi9/ubi-minimal
@@ -33,8 +34,8 @@ RUN curl -L https://github.com/golang-migrate/migrate/releases/download/v4.17.0/
 # Copy migrations and compiled binaries from builder stage
 COPY --from=builder /app/internal/db/migrations /app/migrations
 COPY --from=builder /app/server /app/server
-COPY --from=builder /app/scripts/create_partitions /app/scripts/create_partitions
-COPY --from=builder /app/scripts/drop_partitions /app/scripts/drop_partitions
+COPY --from=builder /app/create /app/create
+COPY --from=builder /app/drop /app/drop
 
 RUN microdnf install -y go && \
     microdnf clean all

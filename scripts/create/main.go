@@ -61,13 +61,13 @@ func main() {
 	ctx := context.Background()
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		log.Printf("failed to load config: %w", err)
+		log.Printf("failed to load config.")
 		return
 	}
 
 	db, err := pgxpool.New(ctx, cfg.DatabaseURL)
 	if err != nil {
-		log.Printf("failed to connect to database: %w", err)
+		log.Printf("failed to connect to database.")
 		return
 	}
 	defer db.Close()

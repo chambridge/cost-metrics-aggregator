@@ -12,11 +12,7 @@ spec:
           containers:
           - name: create-partitions
             image: quay.io/chambridge/cost-metrics-aggregator:latest
-            command:
-            - /bin/sh
-            - -c
-            - |
-              go run /app/scripts/create_partitions.go
+            command: ["/app/create"]
             env:
             - name: DATABASE_URL
               valueFrom:
