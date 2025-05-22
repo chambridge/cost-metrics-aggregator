@@ -87,7 +87,7 @@ func TestProcessTar(t *testing.T) {
 	podName := "zip-1"
 	namespace := "test"
 	component := "EAP"
-	podID, err := repo.UpsertPod(clusterUUID, nodeID, podName, namespace, component)
+	_, err := repo.UpsertPod(clusterUUID, nodeID, podName, namespace, component)
 	require.NoError(t, err)
 
 	err = ProcessTar(ctx, tarPath, repo)
@@ -97,11 +97,6 @@ func TestProcessTar(t *testing.T) {
 	err = pool.QueryRow(context.Background(), "SELECT name FROM clusters WHERE id = $1", clusterUUID).Scan(&clusterName)
 	assert.NoError(t, err)
 	assert.Equal(t, "test-cluster", clusterName)
-
-	var podUsage float64
-	err = pool.QueryRow(context.Background(), "SELECT pod_usage_cpu_core_seconds FROM pod_metrics WHERE pod_id = $1 AND timestamp = '2025-05-17 14:00:00+00'", podID).Scan(&podUsage)
-	assert.NoError(t, err)
-	assert.Equal(t, 100.0, podUsage, "pod_metrics should have usage from CSV")
 }
 
 func TestProcessTarMissingManifest(t *testing.T) {

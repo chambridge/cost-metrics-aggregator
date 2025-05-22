@@ -23,13 +23,14 @@ func TestUpsertNode(t *testing.T) {
 	identifier := "i-09ad6102842b9a786"
 	nodeRole := "worker"
 
+	time.Sleep(500 * time.Millisecond)
 	nodeID, err := repo.UpsertNode(clusterID, nodeName, identifier, nodeRole)
 	assert.NoError(t, err)
 	assert.NotEqual(t, uuid.Nil, nodeID)
-
+	time.Sleep(500 * time.Millisecond)
+	
 	var count int
 	err = tx.QueryRow(context.Background(), "SELECT COUNT(*) FROM nodes WHERE id = $1", nodeID).Scan(&count)
-	// err = tx.QueryRow(context.Background(), "SELECT COUNT(*) FROM nodes WHERE id = $1 AND name = $2 AND type = $3", nodeID, nodeName, nodeRole).Scan(&count)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, count)
 }
@@ -49,6 +50,7 @@ func TestInsertNodeMetric(t *testing.T) {
 	// Ensure node exists
 	nodeID, err := repo.UpsertNode(clusterID, nodeName, identifier, nodeRole)
 	require.NoError(t, err)
+	time.Sleep(500 * time.Millisecond)
 
 	timestamp, _ := time.Parse("2006-01-02 15:04:05 +0000 MST", "2025-05-17 14:00:00 +0000 UTC")
 	coreCount := 4
