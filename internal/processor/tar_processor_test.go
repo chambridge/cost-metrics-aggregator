@@ -118,7 +118,7 @@ func TestProcessTarMissingManifest(t *testing.T) {
 
 	err := ProcessTar(ctx, tarPath, repo)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to parse manifest.json")
+	assert.Contains(t, err.Error(), "no manifest.json found in tar archive")
 }
 
 func TestProcessTarInvalidCSV(t *testing.T) {

@@ -12,6 +12,18 @@ POSTGRES_DB := costmetrics
 POSTGRES_HOST := localhost
 POSTGRES_PORT := 5432
 
+# Default container runtime (podman or docker)
+CONTAINER_RUNTIME ?= podman
+
+# Default image name
+IMAGE_NAME ?= quay.io/chambridge/cost-metrics-aggregator:latest
+
+# Check if Containerfile exists
+CONTAINERFILE := Containerfile
+ifeq (,$(wildcard $(CONTAINERFILE)))
+  $(error Containerfile not found at $(CONTAINERFILE))
+endif
+
 # Default target
 all: build
 
@@ -20,9 +32,14 @@ all: build
 build:
 	$(GO) build -o $(BINARY) ./cmd/server/main.go
 
+# Build the container image
+build-image:
+	@command -v $(CONTAINER_RUNTIME) >/dev/null 2>&1 || { echo "Error: $(CONTAINER_RUNTIME) is not installed"; exit 1; }
+	$(CONTAINER_RUNTIME) build -t $(IMAGE_NAME) -f $(CONTAINERFILE) .
+
 # Run tests
 test:
-	$(GO) test -v ./...
+	$(GO) test -cover -v -count=1 ./...
 
 # Run linter (requires golangci-lint)
 lint:

@@ -4,8 +4,8 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"testing"
 	"runtime"
+	"testing"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -32,10 +32,10 @@ func SetupTestDB(t *testing.T) *pgxpool.Pool {
 	require.NoError(t, err)
 
 	_, currentFile, _, ok := runtime.Caller(0)
-    if !ok {
-        panic("Could not get caller information")
-    }
-    currentDir := filepath.Dir(currentFile)
+	if !ok {
+		panic("Could not get caller information")
+	}
+	currentDir := filepath.Dir(currentFile)
 
 	schemaPath := filepath.Join(currentDir, "..", "..", "db", "migrations", "0001_init.up.sql")
 	schema, err := os.ReadFile(schemaPath)

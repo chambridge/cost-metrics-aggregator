@@ -44,6 +44,7 @@ func ProcessTar(ctx context.Context, tarPath string, repo *db.Repository) error 
 
 	tr := tar.NewReader(gzr)
 	var manifest Manifest
+	manifestFound := false
 
 	for {
 		header, err := tr.Next()
@@ -63,6 +64,7 @@ func ProcessTar(ctx context.Context, tarPath string, repo *db.Repository) error 
 			if err := json.Unmarshal(data, &manifest); err != nil {
 				return fmt.Errorf("failed to parse manifest.json: %w", err)
 			}
+			manifestFound = true
 			log.Printf("Processed manifest.json: cluster_id=%s", manifest.ClusterID)
 
 			// Insert or update clusters using Repository
@@ -80,6 +82,10 @@ func ProcessTar(ctx context.Context, tarPath string, repo *db.Repository) error 
 			}
 			log.Printf("Inserted/updated cluster: id=%s, name=%s", clusterID, clusterName)
 		}
+	}
+
+	if !manifestFound {
+		return fmt.Errorf("no manifest.json found in tar archive")
 	}
 
 	// Reset tar reader to process CSVs

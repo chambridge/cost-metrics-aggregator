@@ -72,8 +72,12 @@ func ProcessCSV(ctx context.Context, repo *db.Repository, reader *csv.Reader, cl
 		podLabelKeySet[strings.TrimSpace(key)] = struct{}{}
 	}
 
-	// Track node metrics (nodeID -> timestamp -> coreCount)
-	nodeMetrics := make(map[uuid.UUID]map[time.Time]int)
+	// Track node metrics (nodeID -> date -> hour -> max core_count)
+	type hourMetric struct {
+		maxCoreCount int
+		timestamp    time.Time
+	}
+	nodeMetrics := make(map[uuid.UUID]map[string]map[time.Time]hourMetric)
 	// Track pod metrics (podID -> timestamp -> {usage, request, nodeCapacity})
 	type podMetric struct {
 		usage     float64
@@ -165,10 +169,27 @@ func ProcessCSV(ctx context.Context, repo *db.Repository, reader *csv.Reader, cl
 		}
 
 		// Track node metrics for daily summary
+		dateStr := intervalStart.Truncate(24 * time.Hour).Format("2006-01-02")
+		hour := intervalStart.Truncate(time.Hour)
 		if _, ok := nodeMetrics[nodeID]; !ok {
-			nodeMetrics[nodeID] = make(map[time.Time]int)
+			nodeMetrics[nodeID] = make(map[string]map[time.Time]hourMetric)
 		}
-		nodeMetrics[nodeID][intervalStart] = int(capacityCPU)
+		if _, ok := nodeMetrics[nodeID][dateStr]; !ok {
+			nodeMetrics[nodeID][dateStr] = make(map[time.Time]hourMetric)
+		}
+		if metric, ok := nodeMetrics[nodeID][dateStr][hour]; ok {
+			if int(capacityCPU) > metric.maxCoreCount {
+				nodeMetrics[nodeID][dateStr][hour] = hourMetric{
+					maxCoreCount: int(capacityCPU),
+					timestamp:    intervalStart,
+				}
+			}
+		} else {
+			nodeMetrics[nodeID][dateStr][hour] = hourMetric{
+				maxCoreCount: int(capacityCPU),
+				timestamp:    intervalStart,
+			}
+		}
 
 		// Process pod if it has a matching label key
 		labels := strings.Split(podLabels, "|")
@@ -231,13 +252,15 @@ func ProcessCSV(ctx context.Context, repo *db.Repository, reader *csv.Reader, cl
 		}
 	}
 
-	// Update node daily summaries after processing all records
-	for nodeID, timestamps := range nodeMetrics {
-		for ts, coreCount := range timestamps {
-			err := repo.UpdateNodeDailySummary(nodeID, ts, coreCount)
-			if err != nil {
-				log.Printf("Failed to update node_daily_summary for node %s at %s: %v", nodeID, ts, err)
-				continue
+	// Update node daily summaries
+	for nodeID, dates := range nodeMetrics {
+		for _, hours := range dates {
+			for _, metric := range hours {
+				err := repo.UpdateNodeDailySummary(nodeID, metric.timestamp, metric.maxCoreCount)
+				if err != nil {
+					log.Printf("Failed to update node_daily_summary for node %s at %s with core_count %d: %v", nodeID, metric.timestamp, metric.maxCoreCount, err)
+					continue
+				}
 			}
 		}
 	}
