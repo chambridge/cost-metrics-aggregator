@@ -17,6 +17,8 @@ type NodeMetricsQueryParams struct {
 	ClusterID   string `form:"cluster_id"`
 	ClusterName string `form:"cluster_name"`
 	NodeType    string `form:"node_type"`
+	Limit       int    `form:"limit,default=100"`
+	Offset      int    `form:"offset,default=0"`
 }
 
 type PodMetricsQueryParams struct {
@@ -27,6 +29,8 @@ type PodMetricsQueryParams struct {
 	Namespace   string `form:"namespace"`
 	PodName     string `form:"pod_name"`
 	Component   string `form:"component"`
+	Limit       int    `form:"limit,default=100"`
+	Offset      int    `form:"offset,default=0"`
 }
 
 // QueryNodeMetricsHandler handles the /api/metrics/v1/nodes endpoint, querying node_daily_summary
@@ -35,6 +39,16 @@ func QueryNodeMetricsHandler(database *pgxpool.Pool) gin.HandlerFunc {
 		var params NodeMetricsQueryParams
 		if err := c.ShouldBindQuery(&params); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid query parameters: " + err.Error()})
+			return
+		}
+
+		// Validate limit
+		if params.Limit <= 0 || params.Limit > 1000 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Limit must be between 1 and 1000"})
+			return
+		}
+		if params.Offset < 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Offset must be non-negative"})
 			return
 		}
 
@@ -64,7 +78,7 @@ func QueryNodeMetricsHandler(database *pgxpool.Pool) gin.HandlerFunc {
 		}
 
 		repo := db.NewRepository(database)
-		nodeMetrics, err := repo.QueryNodeMetrics(start, end, params.ClusterID, params.ClusterName, params.NodeType)
+		nodeMetrics, total, err := repo.QueryNodeMetrics(start, end, params.ClusterID, params.ClusterName, params.NodeType, params.Limit, params.Offset)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query node metrics: " + err.Error()})
 			return
@@ -113,8 +127,15 @@ func QueryNodeMetricsHandler(database *pgxpool.Pool) gin.HandlerFunc {
 			return
 		}
 
-		// Default JSON response
-		c.JSON(http.StatusOK, nodeMetrics)
+		// JSON response with metadata
+		c.JSON(http.StatusOK, gin.H{
+			"metadata": gin.H{
+				"total":  total,
+				"limit":  params.Limit,
+				"offset": params.Offset,
+			},
+			"data": nodeMetrics,
+		})
 	}
 }
 
@@ -124,6 +145,16 @@ func QueryPodMetricsHandler(database *pgxpool.Pool) gin.HandlerFunc {
 		var params PodMetricsQueryParams
 		if err := c.ShouldBindQuery(&params); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid query parameters: " + err.Error()})
+			return
+		}
+
+		// Validate limit
+		if params.Limit <= 0 || params.Limit > 1000 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Limit must be between 1 and 1000"})
+			return
+		}
+		if params.Offset < 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Offset must be non-negative"})
 			return
 		}
 
@@ -153,7 +184,7 @@ func QueryPodMetricsHandler(database *pgxpool.Pool) gin.HandlerFunc {
 		}
 
 		repo := db.NewRepository(database)
-		podMetrics, err := repo.QueryPodMetrics(start, end, params.ClusterID, params.ClusterName, params.Namespace, params.PodName, params.Component)
+		podMetrics, total, err := repo.QueryPodMetrics(start, end, params.ClusterID, params.ClusterName, params.Namespace, params.PodName, params.Component, params.Limit, params.Offset)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query pod metrics: " + err.Error()})
 			return
@@ -203,7 +234,14 @@ func QueryPodMetricsHandler(database *pgxpool.Pool) gin.HandlerFunc {
 			return
 		}
 
-		// Default JSON response
-		c.JSON(http.StatusOK, podMetrics)
+		// JSON response with metadata
+		c.JSON(http.StatusOK, gin.H{
+			"metadata": gin.H{
+				"total":  total,
+				"limit":  params.Limit,
+				"offset": params.Offset,
+			},
+			"data": podMetrics,
+		})
 	}
 }

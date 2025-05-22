@@ -124,7 +124,35 @@ func (r *Repository) UpdatePodDailySummary(podID uuid.UUID, timestamp time.Time,
 	return err
 }
 
-func (r *Repository) QueryNodeMetrics(start, end time.Time, clusterID, clusterName, nodeType string) ([]NodeDailySummary, error) {
+func (r *Repository) QueryNodeMetrics(start, end time.Time, clusterID, clusterName, nodeType string, limit, offset int) ([]NodeDailySummary, int, error) {
+	// Count total records
+	countQuery := `
+		SELECT COUNT(*) 
+		FROM node_daily_summary ds
+		JOIN nodes n ON ds.node_id = n.id
+		JOIN clusters c ON n.cluster_id = c.id
+		WHERE ds.date BETWEEN $1 AND $2`
+	countArgs := []interface{}{start, end}
+	if clusterID != "" {
+		countQuery += " AND c.id::text = $" + fmt.Sprint(len(countArgs)+1)
+		countArgs = append(countArgs, clusterID)
+	}
+	if clusterName != "" {
+		countQuery += " AND c.name ILIKE $" + fmt.Sprint(len(countArgs)+1)
+		countArgs = append(countArgs, clusterName)
+	}
+	if nodeType != "" {
+		countQuery += " AND n.type = $" + fmt.Sprint(len(countArgs)+1)
+		countArgs = append(countArgs, nodeType)
+	}
+
+	var total int
+	err := r.db.QueryRow(context.Background(), countQuery, countArgs...).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count node_daily_summary: %w", err)
+	}
+
+	// Query with pagination
 	query := `
 		SELECT 
 			ds.date,
@@ -152,10 +180,12 @@ func (r *Repository) QueryNodeMetrics(start, end time.Time, clusterID, clusterNa
 		query += " AND n.type = $" + fmt.Sprint(len(args)+1)
 		args = append(args, nodeType)
 	}
+	query += fmt.Sprintf(" ORDER BY ds.date LIMIT $%d OFFSET $%d", len(args)+1, len(args)+2)
+	args = append(args, limit, offset)
 
 	rows, err := r.db.Query(context.Background(), query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query node_daily_summary: %w", err)
+		return nil, 0, fmt.Errorf("failed to query node_daily_summary: %w", err)
 	}
 	defer rows.Close()
 
@@ -173,20 +203,56 @@ func (r *Repository) QueryNodeMetrics(start, end time.Time, clusterID, clusterNa
 			&s.CoreCount,
 			&s.TotalHours,
 		); err != nil {
-			return nil, fmt.Errorf("failed to scan row: %w", err)
+			return nil, 0, fmt.Errorf("failed to scan row: %w", err)
 		}
 		s.NodeIdentifier = nodeIdentifier.String
 		s.NodeType = nodeType.String
 		summaries = append(summaries, s)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("row iteration error: %w", err)
+		return nil, 0, fmt.Errorf("row iteration error: %w", err)
 	}
 
-	return summaries, nil
+	return summaries, total, nil
 }
 
-func (r *Repository) QueryPodMetrics(start, end time.Time, clusterID, clusterName, namespace, podName, component string) ([]PodDailySummary, error) {
+func (r *Repository) QueryPodMetrics(start, end time.Time, clusterID, clusterName, namespace, podName, component string, limit, offset int) ([]PodDailySummary, int, error) {
+	// Count total records
+	countQuery := `
+		SELECT COUNT(*) 
+		FROM pod_daily_summary ds
+		JOIN pods p ON ds.pod_id = p.id
+		JOIN clusters c ON p.cluster_id = c.id
+		WHERE ds.date BETWEEN $1 AND $2`
+	countArgs := []interface{}{start, end}
+	if clusterID != "" {
+		countQuery += " AND c.id::text = $" + fmt.Sprint(len(countArgs)+1)
+		countArgs = append(countArgs, clusterID)
+	}
+	if clusterName != "" {
+		countQuery += " AND c.name ILIKE $" + fmt.Sprint(len(countArgs)+1)
+		countArgs = append(countArgs, "%"+clusterName+"%")
+	}
+	if namespace != "" {
+		countQuery += " AND p.namespace ILIKE $" + fmt.Sprint(len(countArgs)+1)
+		countArgs = append(countArgs, "%"+namespace+"%")
+	}
+	if podName != "" {
+		countQuery += " AND p.name ILIKE $" + fmt.Sprint(len(countArgs)+1)
+		countArgs = append(countArgs, "%"+podName+"%")
+	}
+	if component != "" {
+		countQuery += " AND p.component ILIKE $" + fmt.Sprint(len(countArgs)+1)
+		countArgs = append(countArgs, "%"+component+"%")
+	}
+
+	var total int
+	err := r.db.QueryRow(context.Background(), countQuery, countArgs...).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count pod_daily_summary: %w", err)
+	}
+
+	// Query with pagination
 	query := `
 		SELECT 
 			ds.date,
@@ -223,10 +289,12 @@ func (r *Repository) QueryPodMetrics(start, end time.Time, clusterID, clusterNam
 		query += " AND p.component ILIKE $" + fmt.Sprint(len(args)+1)
 		args = append(args, "%"+component+"%")
 	}
+	query += fmt.Sprintf(" ORDER BY ds.date LIMIT $%d OFFSET $%d", len(args)+1, len(args)+2)
+	args = append(args, limit, offset)
 
 	rows, err := r.db.Query(context.Background(), query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query pod_daily_summary: %w", err)
+		return nil, 0, fmt.Errorf("failed to query pod_daily_summary: %w", err)
 	}
 	defer rows.Close()
 
@@ -245,14 +313,14 @@ func (r *Repository) QueryPodMetrics(start, end time.Time, clusterID, clusterNam
 			&s.PodName,
 			&component,
 		); err != nil {
-			return nil, fmt.Errorf("failed to scan row: %w", err)
+			return nil, 0, fmt.Errorf("failed to scan row: %w", err)
 		}
 		s.Component = component.String
 		summaries = append(summaries, s)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("row iteration error: %w", err)
+		return nil, 0, fmt.Errorf("row iteration error: %w", err)
 	}
 
-	return summaries, nil
+	return summaries, total, nil
 }
