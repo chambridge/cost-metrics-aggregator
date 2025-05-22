@@ -104,15 +104,18 @@ make test
 This runs tests in all packages, including CSV processing for node and pod metrics.
 
 ### 5. Test the Application
-Upload a test CSV file to ingest metrics:
+
+Generate a test tar.gz file containing a manifest.json and sample CSV files for the previous 24 hours:
 ```bash
-curl -X POST -F "file=@test.csv" http://localhost:8080/api/ingres/v1/upload
+make generate-test-upload
 ```
-Example `test.csv`:
-```csv
-report_period_start,report_period_end,interval_start,interval_end,node,namespace,pod,pod_usage_cpu_core_seconds,pod_request_cpu_core_seconds,pod_limit_cpu_core_seconds,pod_usage_memory_byte_seconds,pod_request_memory_byte_seconds,pod_limit_memory_byte_seconds,node_capacity_cpu_cores,node_capacity_cpu_core_seconds,node_capacity_memory_bytes,node_capacity_memory_byte_seconds,node_role,resource_id,pod_labels
-2025-05-17 00:00:00 +0000 UTC,2025-05-17 23:59:59 +0000 UTC,2025-05-17 14:00:00 +0000 UTC,2025-05-17 15:00:00 +0000 UTC,ip-10-0-1-63.ec2.internal,test,zip-1,100,200,300,1000,2000,3000,4,14400,17179869184,61729433600,worker,i-09ad6102842b9a786,app:web|label_rht_comp:EAP
+
+Upload the generated test file to the application:
+```bash
+make upload-test
 ```
+
+The generate-test-upload target creates a test_upload.tar.gz file with a manifest and two CSV files, each containing hourly metrics data compatible with the application's ingestion endpoint. The upload-test target sends this file to http://localhost:8080/api/ingres/v1/upload. Ensure the application is running before uploading.
 
 Query node metrics:
 ```bash

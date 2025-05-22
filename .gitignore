@@ -29,3 +29,6 @@ data
 
 server
 db.env
+
+test_upload
+test_upload.tar.gz

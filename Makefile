@@ -24,6 +24,10 @@ ifeq (,$(wildcard $(CONTAINERFILE)))
   $(error Containerfile not found at $(CONTAINERFILE))
 endif
 
+GENERATE_SCRIPT := scripts/generate_test_upload/main.go
+OUTPUT_DIR := test_upload
+OUTPUT_TAR := test_upload.tar.gz
+
 # Default target
 all: build
 
@@ -68,6 +72,14 @@ compose-up:
 compose-down:
 	$(PODMAN)-compose -f podman-compose.yaml down
 
+# Target to generate test upload
+generate-test-upload:
+	rm -rf $(OUTPUT_DIR) $(OUTPUT_TAR)
+	go run $(GENERATE_SCRIPT)
+
+# Target to upload the generated test file
+upload-test: generate-test-upload
+	curl -X POST -F "file=@$(OUTPUT_TAR)" http://localhost:8080/api/ingres/v1/upload
 
 # Show help
 help:
@@ -83,4 +95,6 @@ help:
 	@echo "  clean         Remove build artifacts and image"
 	@echo "  compose-up    Start services with podman-compose"
 	@echo "  compose-down  Stop and remove services"
+	@echo "  generate-test-upload Generate test payload"
+	@echo "  upload-test   Send generated payload to upload endpoint"
 	@echo "  help          Show this help message"
