@@ -28,7 +28,7 @@ func TestUpsertNode(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEqual(t, uuid.Nil, nodeID)
 	time.Sleep(500 * time.Millisecond)
-	
+
 	var count int
 	err = tx.QueryRow(context.Background(), "SELECT COUNT(*) FROM nodes WHERE id = $1", nodeID).Scan(&count)
 	assert.NoError(t, err)

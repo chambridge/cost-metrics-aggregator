@@ -1,6 +1,9 @@
 package handlers
 
 import (
+	"bytes"
+	"encoding/csv"
+	"fmt"
 	"github.com/chambridge/cost-metrics-aggregator/internal/db"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -26,7 +29,7 @@ type PodMetricsQueryParams struct {
 	Component   string `form:"component"`
 }
 
-// QueryPodMetricsHandler handles the /api/metrics/v1/nodes endpoint, querying node_daily_summary
+// QueryNodeMetricsHandler handles the /api/metrics/v1/nodes endpoint, querying node_daily_summary
 func QueryNodeMetricsHandler(database *pgxpool.Pool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var params NodeMetricsQueryParams
@@ -61,13 +64,57 @@ func QueryNodeMetricsHandler(database *pgxpool.Pool) gin.HandlerFunc {
 		}
 
 		repo := db.NewRepository(database)
-		node_metrics, err := repo.QueryNodeMetrics(start, end, params.ClusterID, params.ClusterName, params.NodeType)
+		nodeMetrics, err := repo.QueryNodeMetrics(start, end, params.ClusterID, params.ClusterName, params.NodeType)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query node metrics: " + err.Error()})
 			return
 		}
 
-		c.JSON(http.StatusOK, node_metrics)
+		// Check Accept header
+		accept := c.GetHeader("Accept")
+		if accept == "text/csv" {
+			var buf bytes.Buffer
+			writer := csv.NewWriter(&buf)
+
+			// Write CSV header
+			header := []string{"Date", "ClusterID", "ClusterName", "NodeName", "NodeIdentifier", "NodeType", "CoreCount", "TotalHours"}
+			if err := writer.Write(header); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write CSV header: " + err.Error()})
+				return
+			}
+
+			// Write CSV rows
+			for _, metric := range nodeMetrics {
+				row := []string{
+					metric.Date.Format("2006-01-02"),
+					metric.ClusterID.String(),
+					metric.ClusterName,
+					metric.NodeName,
+					metric.NodeIdentifier,
+					metric.NodeType,
+					fmt.Sprintf("%d", metric.CoreCount),
+					fmt.Sprintf("%d", metric.TotalHours),
+				}
+				if err := writer.Write(row); err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write CSV row: " + err.Error()})
+					return
+				}
+			}
+
+			writer.Flush()
+			if err := writer.Error(); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to flush CSV: " + err.Error()})
+				return
+			}
+
+			c.Header("Content-Type", "text/csv")
+			c.Header("Content-Disposition", "attachment;filename=node_metrics.csv")
+			c.String(http.StatusOK, buf.String())
+			return
+		}
+
+		// Default JSON response
+		c.JSON(http.StatusOK, nodeMetrics)
 	}
 }
 
@@ -106,12 +153,57 @@ func QueryPodMetricsHandler(database *pgxpool.Pool) gin.HandlerFunc {
 		}
 
 		repo := db.NewRepository(database)
-		pod_metrics, err := repo.QueryPodMetrics(start, end, params.ClusterID, params.ClusterName, params.Namespace, params.PodName, params.Component)
+		podMetrics, err := repo.QueryPodMetrics(start, end, params.ClusterID, params.ClusterName, params.Namespace, params.PodName, params.Component)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query pod metrics: " + err.Error()})
 			return
 		}
 
-		c.JSON(http.StatusOK, pod_metrics)
+		// Check Accept header
+		accept := c.GetHeader("Accept")
+		if accept == "text/csv" {
+			var buf bytes.Buffer
+			writer := csv.NewWriter(&buf)
+
+			// Write CSV header
+			header := []string{"Date", "MaxCoresUsed", "TotalPodEffectiveCoreSeconds", "TotalHours", "ClusterID", "ClusterName", "Namespace", "PodName", "Component"}
+			if err := writer.Write(header); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write CSV header: " + err.Error()})
+				return
+			}
+
+			// Write CSV rows
+			for _, metric := range podMetrics {
+				row := []string{
+					metric.Date.Format("2006-01-02"),
+					fmt.Sprintf("%.2f", metric.MaxCoresUsed),
+					fmt.Sprintf("%.2f", metric.TotalPodEffectiveCoreSeconds),
+					fmt.Sprintf("%d", metric.TotalHours),
+					metric.ClusterID.String(),
+					metric.ClusterName,
+					metric.Namespace,
+					metric.PodName,
+					metric.Component,
+				}
+				if err := writer.Write(row); err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write CSV row: " + err.Error()})
+					return
+				}
+			}
+
+			writer.Flush()
+			if err := writer.Error(); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to flush CSV: " + err.Error()})
+				return
+			}
+
+			c.Header("Content-Type", "text/csv")
+			c.Header("Content-Disposition", "attachment;filename=pod_metrics.csv")
+			c.String(http.StatusOK, buf.String())
+			return
+		}
+
+		// Default JSON response
+		c.JSON(http.StatusOK, podMetrics)
 	}
 }
