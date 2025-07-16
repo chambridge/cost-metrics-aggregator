@@ -25,7 +25,7 @@ services:
       - POSTGRES_DB=costmetrics
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./internal/db/migrations:/docker-entrypoint-initdb.d
+      - ./internal/db/migrations:/docker-entrypoint-initdb.d:Z
     ports:
       - "5432:5432"
     networks:
