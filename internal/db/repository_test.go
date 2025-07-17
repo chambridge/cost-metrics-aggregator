@@ -51,8 +51,10 @@ func TestInsertNodeMetric(t *testing.T) {
 	nodeID, err := repo.UpsertNode(clusterID, nodeName, identifier, nodeRole)
 	require.NoError(t, err)
 	time.Sleep(500 * time.Millisecond)
+	now := time.Now().UTC()
+	year, month := now.Year(), now.Month()
 
-	timestamp, _ := time.Parse("2006-01-02 15:04:05 +0000 MST", "2025-05-17 14:00:00 +0000 UTC")
+	timestamp := time.Date(year, month, 15, 14, 0, 0, 0, time.UTC)
 	coreCount := 4
 
 	err = repo.InsertNodeMetric(nodeID, timestamp, coreCount, clusterID)
@@ -143,8 +145,12 @@ func TestInsertPodMetric(t *testing.T) {
 	// Insert pod to satisfy foreign key constraint
 	podID, err := repo.UpsertPod(clusterID, nodeID, podName, namespace, component)
 	require.NoError(t, err)
+	now := time.Now().UTC()
+	year, month := now.Year(), now.Month()
 
-	timestamp, _ := time.Parse("2006-01-02 15:04:05 +0000 MST", "2025-05-17 14:00:00 +0000 UTC")
+	// Pick a day in this month
+	timestamp := time.Date(year, month, 15, 14, 0, 0, 0, time.UTC)
+
 	usage := 100.0
 	request := 200.0
 	nodeCap := 14400.0

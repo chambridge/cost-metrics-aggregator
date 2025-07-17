@@ -2,11 +2,13 @@ package testutils
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -74,13 +76,24 @@ func SetupTestDB(t *testing.T) (*pgxpool.Pool, func() pgx.Tx) {
 	// 	VALUES ($1, $2, 'ip-10-0-1-63.ec2.internal', 'i-09ad6102842b9a786', 'worker')
 	// `, nodeID, clusterID)
 	// require.NoError(t, err)
+	now := time.Now().UTC()
+	year, month := now.Year(), int(now.Month())
 
-	_, err = tx.Exec(context.Background(), `
-		CREATE TABLE node_metrics_202505 PARTITION OF node_metrics
-		FOR VALUES FROM ('2025-05-01') TO ('2025-06-01');
-		CREATE TABLE pod_metrics_202505 PARTITION OF pod_metrics
-		FOR VALUES FROM ('2025-05-01') TO ('2025-06-01')
-	`)
+	start := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
+	end := start.AddDate(0, 1, 0) // First day of next month
+
+	partitionNameNode := fmt.Sprintf("node_metrics_%d%02d", year, int(month))
+	partitionNamePod := fmt.Sprintf("pod_metrics_%d%02d", year, int(month))
+
+	sql := fmt.Sprintf(`
+	CREATE TABLE IF NOT EXISTS %s PARTITION OF node_metrics
+		FOR VALUES FROM ('%s') TO ('%s');
+	CREATE TABLE IF NOT EXISTS %s PARTITION OF pod_metrics
+		FOR VALUES FROM ('%s') TO ('%s');`,
+		partitionNameNode, start.Format("2006-01-02"), end.Format("2006-01-02"),
+		partitionNamePod, start.Format("2006-01-02"), end.Format("2006-01-02"))
+
+	_, err = tx.Exec(context.Background(), sql)
 	require.NoError(t, err)
 
 	// Commit initial setup

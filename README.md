@@ -117,6 +117,10 @@ make upload-test
 
 The generate-test-upload target creates a test_upload.tar.gz file with a manifest and two CSV files, each containing hourly metrics data compatible with the application's ingestion endpoint. The upload-test target sends this file to http://localhost:8080/api/ingres/v1/upload. Ensure the application is running before uploading.
 
+> 💡 Tip:
+> Substitute `start_date` and `end_date` with the current date
+> (in `YYYY-MM-DD` format) to ensure you query data from current month partition.
+
 Query node metrics:
 ```bash
 curl "http://localhost:8080/api/metrics/v1/nodes?start_date=2025-05-17&end_date=2025-05-17"
