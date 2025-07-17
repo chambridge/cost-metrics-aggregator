@@ -79,7 +79,7 @@ generate-test-upload:
 
 # Target to upload the generated test file
 upload-test: generate-test-upload
-	curl -X POST -F "file=@$(OUTPUT_TAR)" http://localhost:8080/api/ingres/v1/upload
+	curl -X POST -F "file=@$(OUTPUT_TAR)" http://localhost:8080/api/ingress/v1/upload
 
 # Show help
 help:
